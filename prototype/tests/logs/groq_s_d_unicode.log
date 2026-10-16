@@ -1,0 +1,13 @@
+provider=groq model=openai:openai/gpt-oss-120b
+  turn 1: 0.4s, tokens in/out=208/48, tools=['list_files']
+  turn 2: 0.6s, tokens in/out=362/168, tools=['apply_move']
+  [승인] my file v2 .txt -> Documents/my file v2 .txt : approve 
+  turn 3: 0.6s, tokens in/out=543/172, tools=['apply_move']
+  [승인] 졸업 전시 포스터 최종.png -> Images/졸업 전시 포스터 최종.png : approve 
+  turn 4: 1.5s, tokens in/out=801/194, tools=['apply_move']
+  [승인] 과제 2 (수정본).pdf -> Documents/과제 2 (수정본).pdf : approve 
+  turn 5: 0.4s, tokens in/out=1032/43, tools=없음(최종답)
+STATS {'turns': 5, 'r429': 0, 'wait': 0.0, 'in': 2946, 'out': 625} total=3.5s
+[('list_files', '{}'), ('apply_move', '{"dst":"Documents/my file v2 .txt","src":"my file v2 .txt"}'), ('apply_move', '{"dst":"Images/졸업 전시 포스터 최종.png","src":"졸업 전시 포스터 최종.png"}'), ('apply_move', '{"dst":"Documents/과제 2 (수정본).pdf","src":"과제 2 (수정본).pdf"}')] 
+ 모든 파일을 유형별 폴더로 이동했습니다: 이미지 파일은 `Images/`에, 텍스트와 PDF 파일은 `Documents/`에 각각 배치되었습니다.
+트리: ['Documents/my file v2 .txt', 'Documents/과제 2 (수정본).pdf', 'Images/졸업 전시 포스터 최종.png']

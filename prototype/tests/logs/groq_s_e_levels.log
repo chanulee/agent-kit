@@ -1,0 +1,9 @@
+  turn 1: 0.7s, tokens in/out=84/179, tools=없음(최종답)
+L1: 죄송하지만, 저는 사용자의 파일 시스템에 접근할 수 없습니다.
+  turn 2: 0.4s, tokens in/out=94/120, tools=없음(최종답)
+L2(코드가 list_files 먼저 실행): IMG_9.jpg, report.pdf
+provider=groq model=openai:openai/gpt-oss-120b
+  turn 3: 0.4s, tokens in/out=161/84, tools=['list_files']
+  turn 4: 0.3s, tokens in/out=260/52, tools=없음(최종답)
+STATS {'turns': 4, 'r429': 0, 'wait': 0.0, 'in': 599, 'out': 435} total=0.7s
+L3: [('list_files', '{}')] IMG_9.jpg, report.pdf

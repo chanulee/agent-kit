@@ -1,33 +1,52 @@
-"""시험 3종이 같이 쓰는 부분: 모델 연결, 재시도, 실행 결과 정리.
-
-키는 환경 변수에서만 읽습니다. 이 파일에 키를 적지 마세요.
-- Gemini(시험에서 쓴 방식): GEMINI_API_KEY, MODEL=openai:gemini-3.5-flash 등
-- Anthropic(아직 시험 안 함): ANTHROPIC_API_KEY, MODEL=anthropic:<모델 ID>
-"""
-import os
-import re
-import time
-
+"""공통 실행기. PROVIDER=groq|gemini (기본 groq), MODEL로 덮어쓰기 가능."""
+import os, re, time
 import aisuite as ai
+from aisuite.providers import openai_provider as _op
 
-MODEL = os.getenv("MODEL", "openai:gemini-3.8-flash")
+import kit  # .env 읽기 (ZAI_API_KEY, TAVILY_API_KEY)
+PROVIDER = os.getenv("PROVIDER", "groq")
+CFG = {
+    "groq":   ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai:openai/gpt-oss-120b"),
+    "zai":    ("https://api.z.ai/api/paas/v4/", "ZAI_API_KEY", "openai:glm-4.7-flash"),
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY", "openai:gemini-3.8-flash"),
+}[PROVIDER]
+MODEL = os.getenv("MODEL", CFG[2])
+client = ai.Client({"openai": {"api_key": os.environ[CFG[1]], "base_url": CFG[0], "timeout": 60, "max_retries": 0}})
 
-if MODEL.startswith("anthropic:"):
-    # [확인 필요] Anthropic으로는 아직 처음부터 끝까지 돌려 보지 않았습니다.
-    client = ai.Client({"anthropic": {"api_key": os.environ["ANTHROPIC_API_KEY"]}})
-else:
-    # aisuite의 "gemini:" 방식은 도구 호출 때 400 오류(thought_signature 없음)가 납니다.
-    # 그래서 Gemini를 OpenAI 호환 주소로 부릅니다.
-    client = ai.Client({
-        "openai": {
-            "api_key": os.environ["GEMINI_API_KEY"],
-            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
-        }
-    })
-
+STATS = {"turns": 0, "r429": 0, "wait": 0.0, "in": 0, "out": 0}
+_orig = _op.OpenaiProvider.chat_completions_create
+def _wrapped(self, *a, **k):
+    if PROVIDER == "zai": k.setdefault("extra_body", {"thinking": {"type": "disabled"}})
+    for i in range(8):
+        t = time.time()
+        try:
+            r = _orig(self, *a, **k)
+        except Exception as e:
+            s = str(e)
+            if "429" not in s and "503" not in s: raise
+            if os.getenv("STOP_ON_429","1")=="1":
+                STATS["r429"]+=1; print("  [429/503] 재시도 없이 중단", flush=True); raise
+            m = re.search(r"(?:try again in|retry in) ([\d.]+)(ms|s)", s)
+            w = (float(m.group(1)) / (1000 if m.group(2) == "ms" else 1) + 1) if m else 15
+            STATS["r429"] += 1; STATS["wait"] += w
+            print(f"  [{'429' if '429' in s else '503'}] {w:.1f}s 대기 후 재시도", flush=True); time.sleep(w); continue
+        STATS["turns"] += 1
+        u = getattr(r, "usage", None)
+        if u: STATS["in"] += u.prompt_tokens or 0; STATS["out"] += u.completion_tokens or 0
+        tc = r.choices[0].message.tool_calls or []
+        names = [c.function.name for c in tc]
+        print(f"  turn {STATS['turns']}: {time.time()-t:.1f}s, tokens in/out={getattr(u,'prompt_tokens',None)}/{getattr(u,'completion_tokens',None)}, tools={names or '없음(최종답)'}", flush=True)
+        return r
+    raise RuntimeError("재시도 초과")
+_op.OpenaiProvider.chat_completions_create = _wrapped
 
 def run(msgs, tools, max_turns=8):
-    """도구 루프를 돌리고 (최종 답, 도구 호출 목록, 걸린 초)를 돌려줍니다."""
+    print(f"provider={PROVIDER} model={MODEL}", flush=True)
+    if os.getenv("EXTRA_RULES") == "1":
+        rules = "\n규칙: 도구 결과가 없으면 2번까지만 다시 시도하고, 그래도 없으면 멈추고 지금까지 아는 것으로 답해.\n규칙: apply_move는 승인을 스스로 처리하니, 채팅으로 허락을 묻지 말고 바로 apply_move를 호출해."
+        msgs = list(msgs)
+        if msgs and msgs[0]["role"] == "system": msgs[0] = {**msgs[0], "content": msgs[0]["content"] + rules}
+        else: msgs.insert(0, {"role": "system", "content": rules.strip()})
     t = time.time()
     r = client.chat.completions.create(model=MODEL, messages=msgs, tools=tools, max_turns=max_turns)
     dt = time.time() - t
@@ -39,34 +58,6 @@ def run(msgs, tools, max_turns=8):
             n = f["name"] if isinstance(f, dict) else f.name
             a = f["arguments"] if isinstance(f, dict) else f.arguments
             calls.append((n, str(a)[:120]))
+    print(f"STATS {STATS} total={dt:.1f}s", flush=True)
+    import json; json.dump(STATS, open(os.getenv("STATS_FILE","/tmp/last_stats.json"),"w"))
     return r.choices[0].message.content, calls, dt
-
-
-# 429(호출 한도)나 503(서버 바쁨)이면 기다렸다 다시 시도합니다.
-# 시험 당시에는 429만 처리했고, 503 처리는 이후 결정에 따라 더했습니다(다시 돌려 보지 않음).
-def _patch_retry(provider_cls):
-    orig = provider_cls.chat_completions_create
-
-    def _retry(self, *a, **k):
-        for _ in range(6):
-            try:
-                return orig(self, *a, **k)
-            except Exception as e:  # 공급자마다 오류 종류가 달라서 글로 판단합니다
-                msg = str(e)
-                if "429" not in msg and "503" not in msg:
-                    raise
-                if "PerDay" in msg or re.search(r"retry in \d+h", msg):
-                    # 하루 한도를 다 쓴 경우: 기다려도 소용없으므로 바로 멈춥니다.
-                    raise RuntimeError("하루 호출 한도를 다 썼습니다. 유료 키나 다른 모델을 쓰세요.") from e
-                m = re.search(r"retry in ([\d.]+)s", msg)
-                w = float(m.group(1)) + 1 if m else 20
-                code = "429" if "429" in msg else "503"
-                print(f"  [{code}] {w:.0f}초 기다리는 중")
-                time.sleep(w)
-        return orig(self, *a, **k)
-
-    provider_cls.chat_completions_create = _retry
-
-
-from aisuite.providers import openai_provider as _op  # noqa: E402
-_patch_retry(_op.OpenaiProvider)
