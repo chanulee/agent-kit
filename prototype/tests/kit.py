@@ -43,6 +43,8 @@ def apply_move(src: str, dst: str) -> str:
 B="https://collectionapi.metmuseum.org/public/collection/v1"
 def met_search(q: str) -> str:
     """Search Met Museum open-access artworks by English keyword. Returns up to 4 public-domain candidates by different artists (objectID, title, artist, date, medium). Compare them and pick one or a 'no results' message."""
+    if len(MET_CALLS)>=3: return "error: met_search limit reached (3 per run). Pick one of the candidates you already have."
+    MET_CALLS.append(q)
     try:
         H={"User-Agent":"agent-kit-workshop-test/0.1"}
         ids=(requests.get(B+".1/search",params={"q":q,"hasImages":"true","limit":40},headers=H,timeout=20).json().get("objectIDs") or [])[:16]
@@ -73,6 +75,7 @@ def redact(s):
     return re.sub(r"tavilyApiKey=[^&\s'\"]+","tavilyApiKey=***",s)
 
 # ---- Tavily 원격 MCP (streamable HTTP) + 호출 횟수 제한 ----
+SEEN_URLS=set(); MET_CALLS=[]
 WEB_CAP=int(os.getenv("WEB_CAP","5")); WEB_CALLS=[]; _MC=[None]
 def _tavily():
     if _MC[0] is None:
@@ -83,7 +86,11 @@ def _tavily():
 def _call(name, **kw):
     if len(WEB_CALLS)>=WEB_CAP: return f"error: web limit reached ({WEB_CAP} calls this run). Stop searching and answer with what you have."
     WEB_CALLS.append((name,kw)); print(f"  [web {len(WEB_CALLS)}/{WEB_CAP}] {name} {kw}",flush=True)
-    try: return redact(str(_tavily()[name](**kw))[:4000])
+    try:
+        out=redact(str(_tavily()[name](**kw)))
+        SEEN_URLS.update(u.rstrip(').,;\'"') for u in re.findall(r"https?://[^\s\"'<>\]]+", out))
+        SEEN_URLS.update(kw.get("urls") or [])
+        return out[:4000]
     except Exception as e: return "error: "+redact(e)[:300]
 def web_search(query: str) -> str:
     """Search the web. query must be a non-empty search phrase. Returns top 3 results (title, url, snippet)."""
@@ -101,8 +108,8 @@ def close_web():
 
 # ---- 갤러리: 모델은 내용만, HTML은 코드가 ----
 import html as _h
-def write_gallery(met_object_id: int, reason: str, commentary: str) -> str:
-    """Save the exhibition page. Give the Met objectID you chose from met_search, a one-line Korean reason why it fits this folder (vs the other candidates), and a 3-sentence Korean commentary (plain text). Title/artist/date/image are filled in by code from the Met."""
+def write_gallery(met_object_id: int, reason: str, commentary: str, sources: list[str]) -> str:
+    """Save the exhibition page. Give the Met objectID you chose from met_search, a one-line Korean reason why it fits this folder (vs the other candidates), a 3-sentence Korean commentary (plain text), and sources = list of page URLs you actually got from web_search/web_read. Title/artist/date/image are filled in by code from the Met."""
     try:
         r=None
         for v in ("v1.1","v1"):
@@ -113,6 +120,9 @@ def write_gallery(met_object_id: int, reason: str, commentary: str) -> str:
     except Exception as ex: return f"error: Met API failed ({ex})"
     if not o.get("isPublicDomain"): return f"error: object {met_object_id} is not public domain. Pick another from met_search."
     if not o.get("primaryImageSmall"): return f"error: object {met_object_id} has no image. Pick another from met_search."
+    norm=lambda u:str(u).strip().rstrip("/")
+    seen={norm(u) for u in SEEN_URLS}
+    kept=[u for u in dict.fromkeys(sources or []) if norm(u) in seen]; dropped=[u for u in (sources or []) if u not in kept]
     title,artist,date,image_url,met_url=o.get("title"),o.get("artistDisplayName") or "작가 미상",o.get("objectDate"),o["primaryImageSmall"],o.get("objectURL")
     e=lambda x:_h.escape(str(x or ""))
     files="".join(f"<li>{e(f)}</li>" for f in tree())
@@ -122,9 +132,9 @@ header{{padding:48px 8vw 16px}}h1{{font-size:40px;margin:0}}.sub{{color:#777}}
 main{{display:grid;grid-template-columns:minmax(260px,1fr) 1fr;gap:40px;padding:24px 8vw 64px}}
 figure{{margin:0;background:#fff;padding:20px;box-shadow:0 10px 30px #0002}}img{{width:100%;display:block}}
 figcaption{{margin-top:12px;font-size:14px;color:#555}}.card{{background:#fff;padding:24px;line-height:1.7}}
-ul{{columns:2;font-size:13px;color:#555}}a{{color:#8a5a00}}</style>
+ul.src{{columns:1;font-size:12px;word-break:break-all}}ul{{columns:2;font-size:13px;color:#555}}a{{color:#8a5a00}}</style>
 <header><h1>내 다운로드 폴더 전시회</h1><p class="sub">도슨트 에이전트가 고른 오늘의 작품</p></header>
 <main><figure><img src="{e(image_url)}" alt="{e(title)}"><figcaption><b>{e(title)}</b><br>{e(artist)} · {e(date)}<br><a href="{e(met_url)}">메트로폴리탄 미술관에서 보기</a></figcaption></figure>
-<section><div class="card"><h2>도슨트 해설</h2><p class="sub">고른 이유: {e(reason)}</p><p>{e(commentary)}</p></div><h3>이번 전시의 소장품 (정리된 파일)</h3><ul>{files}</ul></section></main></html>"""
+<section><div class="card"><h2>도슨트 해설</h2><p class="sub">고른 이유: {e(reason)}</p><p>{e(commentary)}</p>{('<h3>참고한 페이지</h3><ul class="src">'+''.join(f'<li><a href="{e(u)}">{e(u)}</a></li>' for u in kept)+'</ul>') if kept else ''}</div><h3>이번 전시의 소장품 (정리된 파일)</h3><ul>{files}</ul></section></main></html>"""
     p=Path("/workspace/workshop/tests/out/gallery.html"); p.parent.mkdir(exist_ok=True); p.write_text(page)
-    return f"saved {p}: {title} / {artist} / {date}"
+    return f"saved {p}: {title} / {artist} / {date}; sources kept {len(kept)}, dropped {len(dropped)} (not seen this run): {dropped}"
