@@ -280,3 +280,35 @@ def test_team_run_shows_handoff(kit, monkeypatch):
     assert "디자인과" in hand["data"]["passed"]
     assert "디자인과" in out and "갤러리" in out
     assert len([e for e in evs if e["event_type"] == "chat.reply"]) == 2
+
+
+def test_step4_wrong_plan_id_and_reject_then_approve(kit, monkeypatch):
+    """④: 모델이 plan_id를 잊어도 지금 계획으로 옮기고, 거절한 뒤 다시 부르면 계획을 새로 세우지 않고 같은 카드가 뜹니다."""
+    root, folder = kit
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "tools", ["propose_plan", "move_files", "list_files"])
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "ask_before", ["move_files"])
+    tools.STATE["folder"] = folder
+    move.propose_plan([{"src": "todo.md", "dst": "문서/"}])                     # ③에서 세워 둔 계획
+    eng = engine_with([reply(calls=[("move_files", {"plan_id": "p000000"})]),   # 틀린 번호
+                       reply("알겠어요, 안 옮겼어요"),
+                       reply(calls=[("move_files", {})]),                        # 번호 없이
+                       reply("옮겼어요")], monkeypatch)
+    answers = iter([{"action": "deny", "comment": "아직은 싫어"}, {"action": "submit", "items": {}}])
+    cards = []
+
+    def human():
+        done = 0
+        while done < 2:
+            for aid, box in list(eng.pending.items()):
+                cards.append(box["view"]["plan"]["plan_id"])
+                eng.answer(aid, next(answers))
+                done += 1
+            time.sleep(0.02)
+    threading.Thread(target=human, daemon=True).start()
+    eng.run("계획대로 옮겨 줘")
+    assert (folder / "todo.md").exists()                                         # 거절 → 안 옮김
+    ev = kinds(eng.events())
+    assert "loop.plan_id_fixed" in ev
+    eng.run("이번엔 옮겨 줘")
+    assert (folder / "문서/todo.md").exists()                                    # 같은 계획으로 옮김
+    assert len(cards) == 2 and cards[0] == cards[1]                              # 새 계획 없이 같은 카드

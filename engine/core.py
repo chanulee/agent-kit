@@ -281,7 +281,10 @@ class Ctx:
         if pctx.tool_name == "move_files":
             plan = move.review_card(args.get("plan_id", ""))
             if not plan:
-                return ToolPolicyDecision(allowed=False, reason="그 plan_id의 계획이 없습니다. propose_plan을 먼저 부르세요.")
+                return ToolPolicyDecision(allowed=False, reason="심사 중인 계획이 없습니다. propose_plan으로 계획을 먼저 세우세요.")
+            if args.get("plan_id") and args["plan_id"] != plan["plan_id"]:
+                # 모델이 번호를 잘못 기억함 → 지금 계획을 씁니다. 숨기지 않고 루프 칸에 보여 줍니다.
+                self.bus.emit("loop.plan_id_fixed", {"given": args["plan_id"], "used": plan["plan_id"]}, self.agent)
             view["plan"] = plan
         if pctx.tool_name == "write_file":
             content = str(args.get("content") or "")
@@ -289,7 +292,7 @@ class Ctx:
             view["args"] = {"path": view["preview"]["path"], "chars": len(content)}
         decision = self.engine.ask_human(view, self.agent)
         if pctx.tool_name == "move_files":
-            ok, why = move.apply_review(args["plan_id"], decision)
+            ok, why = move.apply_review(plan["plan_id"], decision)
             return True if ok else ToolPolicyDecision(allowed=False, reason=why)
         if decision.get("action") == "approve":
             return True
