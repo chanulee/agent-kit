@@ -1,12 +1,12 @@
-# 에이전트 키트 설정. 화면 버튼을 누르면 이 파일이 바뀌고, 이 파일을 고치면 화면이 따라옵니다.
+# 에이전트 키트 설정. 화면에서 부품을 켜면 agents/my-agent/agent.yaml 이 바뀝니다.
 
-# 자율성 단계: L1 챗봇 | L2 고정 순서 | L3 에이전트(스스로 도구 고름) | L4 에이전트 셋(탐정→큐레이터→도슨트)
-level: L1
+# 대화하는 에이전트. 학생이 한 단계씩 키웁니다.
+agent: my-agent
 
-# L3에서 일할 에이전트 (agents/ 폴더 이름)
-agent: detective
+# 팀 실행에서 갤러리를 만드는 준비된 에이전트
+team_partner: docent
 
-# 뇌(LLM). 기본은 Z.ai GLM (키: .env 의 ZAI_API_KEY)
+# 뇌(모델). 기본은 Z.ai GLM (키: .env 의 ZAI_API_KEY)
 model: "openai:glm-4.5-flash"
 base_url: "https://api.z.ai/api/paas/v4/"
 key_env: ZAI_API_KEY

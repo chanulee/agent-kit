@@ -1,10 +1,10 @@
-"""시계 손: 장면 0에서 "지금 몇 시야?"를 뒤집는 가장 작은 손."""
+"""시계 도구. "지금 몇 시야?"처럼 말만으로는 알 수 없는 것을 확인하는 가장 작은 도구."""
 from datetime import datetime
 
-from hands import hand
+from tools import tool
 
 
-@hand("🕒")
+@tool("🕒", group="기타")
 def get_time() -> str:
     """Get the current local date and time."""
     now = datetime.now()

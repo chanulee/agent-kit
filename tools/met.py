@@ -1,9 +1,9 @@
-"""미술관 손: 메트로폴리탄 미술관 API(키 필요 없음) + 갤러리 페이지 만들기.
+"""미술관 API 도구: 메트로폴리탄 미술관 공개 API(키 필요 없음) + 갤러리 페이지 만들기.
 
 - 검색은 v1.1 주소만 씁니다(옛 /v1/search 는 2026-10-01 종료).
 - 후보는 공공 도메인 + 이미지 있음 + 작가가 서로 다른 것 최대 4점.
 - 갤러리 HTML은 코드가 만들고, 모델은 작품 번호·이유·해설·출처만 줍니다.
-- 출처는 이번 실행에서 웹 손이 실제로 받은 주소만 남깁니다(지어낸 링크 방지).
+- 출처는 이번 실행에서 웹 도구가 실제로 받은 주소만 남깁니다(지어낸 링크 방지).
 """
 import html
 import json
@@ -11,8 +11,8 @@ from pathlib import Path
 
 import httpx
 
-from hands import folder, hand
-from hands.files import all_files
+from tools import folder, tool
+from tools.files import all_files
 
 BASE = "https://collectionapi.metmuseum.org/public/collection"
 UA = {"User-Agent": "agent-kit-workshop/0.1"}
@@ -25,7 +25,7 @@ def _get(url, **params):
         return r.json()
 
 
-@hand("🖼️")
+@tool("🖼️", group="미술관 API")
 def met_search(query: str) -> str:
     """Search The Met open-access collection with a short ENGLISH keyword. Returns up to 4 public-domain candidates
     by different artists (objectID, title, artist, date, medium). Compare them and pick one.
@@ -49,7 +49,7 @@ def met_search(query: str) -> str:
     return json.dumps(out, ensure_ascii=False) if out else f"error: '{query}'로 찾은 작품이 없습니다. 더 쉬운 영어 단어로 다시 찾아보세요."
 
 
-@hand("🏛️")
+@tool("🏛️", group="미술관 API")
 def write_gallery(met_object_id: int, reason: str, commentary: str, sources: list[str]) -> str:
     """Save the exhibition page (gallery.html). Title/artist/date/image are filled in by code from The Met.
 
@@ -59,7 +59,7 @@ def write_gallery(met_object_id: int, reason: str, commentary: str, sources: lis
         commentary: 3 Korean sentences, plain text
         sources: page URLs you actually got from web_search/web_read this run
     """
-    from hands.web import SEEN_URLS
+    from tools.web import SEEN_URLS
     o = _get(f"{BASE}/v1/objects/{int(met_object_id)}")
     if not (o.get("isPublicDomain") and o.get("primaryImageSmall")):
         return "error: 공공 도메인이 아니거나 이미지가 없는 작품입니다. met_search 후보에서 다시 고르세요."

@@ -1,4 +1,4 @@
-"""옮기기 손: 계획표 → 사람 심사(✅❌✏️💬) → 승인된 것만 한 번에 옮기기 → 되돌리기.
+"""옮기기 도구: 계획표 → 사람 심사(✅❌✏️💬) → 승인된 것만 한 번에 옮기기 → 되돌리기.
 
 - propose_plan 은 계획표(plan.json)만 씁니다. 파일은 그대로입니다.
 - move_files 는 agent.yaml 의 ask_before 에 있으면 사람 심사를 거칩니다(엔진이 화면 카드를 띄움).
@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from hands import find, folder, hand, nfc
+from tools import find, folder, nfc, tool
 
 
 class Move(BaseModel):
@@ -44,7 +44,7 @@ def _clean_dst(dst: str) -> str:
     return dst
 
 
-@hand("📝")
+@tool("📝", group="정리")
 def propose_plan(moves: list[Move]) -> str:
     """Save a move/rename plan for the user to review. Does NOT move anything. Then call move_files(plan_id).
 
@@ -79,7 +79,7 @@ def propose_plan(moves: list[Move]) -> str:
     return msg + ("\n빠진 항목: " + " / ".join(problems) if problems else "")
 
 
-@hand("📦")
+@tool("📦", group="정리")
 def move_files(plan_id: str) -> str:
     """Move the files in the reviewed plan. Only items the user approved are moved, all at once. Never deletes.
 
@@ -126,7 +126,7 @@ def move_files(plan_id: str) -> str:
     return out
 
 
-# ---------------- 엔진이 쓰는 함수 (LLM에게 보이는 손은 아님) ----------------
+# ---------------- 엔진이 쓰는 함수 (모델에게 보이는 도구는 아님) ----------------
 
 def review_card(plan_id: str) -> dict | None:
     plan = _load("plan.json", {})

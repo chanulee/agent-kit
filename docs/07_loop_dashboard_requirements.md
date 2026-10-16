@@ -115,8 +115,8 @@
 
 | ID | 우선 | 요구사항 |
 |---|---|---|
-| R2.1 | MUST | 손 하나 = 파일 하나: `hands/files.py`, `hands/web.py`, `hands/met.py`, `hands/clock.py` …. 새 손은 파일을 복사해 함수 하나 쓰면 끝(데코레이터 `@hand`) |
-| R2.2 | MUST | 에이전트 하나 = 폴더 하나: `agents/detective/{persona.md, agent.yaml}`. `agent.yaml`에 손 목록과 루프 손잡이 7개 |
+| R2.1 | MUST | 도구 하나 = 함수 하나: `tools/files.py`, `tools/web.py`, `tools/met.py`, `tools/write.py` …. 새 도구는 함수 하나와 영어 독스트링, `@tool` 이면 됩니다 |
+| R2.2 | MUST | 학생이 키우는 에이전트는 `agents/my-agent/`. `agent.yaml`의 `tools` 목록과 루프 조절. 도슨트는 `agents/docent/`에 준비되어 있습니다 |
 | R2.3 | MUST | 화면 토글 = 파일 한 줄. 파일을 고치면 3초 안에 화면이 따라옴 |
 | R2.4 | MUST | 엔진(대시보드 서버 + aisuite 연결)은 2~3개 파일, 학생이 열 일 없음. Cursor 규칙에 "engine/ 수정 금지, 삭제 기능 금지" |
 | R2.5 | SHOULD | [완성본으로] [처음 상태로] 버튼(학생 파일은 백업) |
