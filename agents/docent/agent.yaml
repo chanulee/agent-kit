@@ -1,0 +1,9 @@
+title: "🎧 도슨트"
+hands: [list_files, met_search, web_search, web_read, write_gallery]
+
+max_turns: 8
+limits: {met_search: 3, web: 4}
+no_repeat: true
+ask_before: []
+retry: 4
+remember_tool_results: false

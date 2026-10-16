@@ -1,0 +1,15 @@
+# 에이전트 키트 설정. 화면 버튼을 누르면 이 파일이 바뀌고, 이 파일을 고치면 화면이 따라옵니다.
+
+# 자율성 단계: L1 챗봇 | L2 고정 순서 | L3 에이전트(스스로 도구 고름) | L4 에이전트 셋(탐정→큐레이터→도슨트)
+level: L1
+
+# L3에서 일할 에이전트 (agents/ 폴더 이름)
+agent: detective
+
+# 뇌(LLM). 기본은 Z.ai GLM (키: .env 의 ZAI_API_KEY)
+model: "openai:glm-4.5-flash"
+base_url: "https://api.z.ai/api/paas/v4/"
+key_env: ZAI_API_KEY
+
+# 에이전트가 일하는 사본 폴더 (화면의 [📁 폴더 고르기]가 채워 줌. 원본이 아니라 복사본)
+folder: "~/agent-workshop/copy"
