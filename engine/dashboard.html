@@ -30,8 +30,10 @@
   .me { background:var(--blue); color:#fff; margin-left:auto; } .ai { background:#f1efea; }
   .card { border:2px solid var(--orange); background:#fff8f0; border-radius:10px; padding:8px 10px; margin:6px 0; }
   .card.err { border-color:var(--red); background:#fdecec; } .card.ok { border-color:var(--line); background:#fafaf8; }
-  .card table { width:100%; border-collapse:collapse; font-size:.92em; } .card td,.card th { border-bottom:1px solid var(--line); padding:3px 4px; text-align:left; vertical-align:top; }
-  .card tr.changed td { background:var(--yellow); } .card tr.rej td { text-decoration:line-through; color:var(--muted); }
+  .plan { max-height:45vh; overflow:auto; border:1px solid var(--line); border-radius:8px; background:#fff; margin-top:6px; font-size:.92em; }
+  .row { display:flex; gap:6px; align-items:flex-start; padding:4px 6px; border-bottom:1px solid var(--line); }
+  .row .what { flex:1; min-width:0; word-break:break-all; } .row .what small { color:var(--muted); }
+  .row.changed { background:var(--yellow); } .row.rej .what { text-decoration:line-through; color:var(--muted); } .row.edit { background:#f3e8fb; }
   .pick button { padding:1px 6px; } .pick button.on { outline:2px solid var(--blue); }
   #composer { display:flex; gap:6px; padding:8px; border-top:1px solid var(--line); } #composer textarea { flex:1; resize:none; border:1px solid var(--line); border-radius:8px; padding:6px; }
   /* 루프 타임라인 */
@@ -155,7 +157,9 @@ async function showFile(path) {
   const d = await api("/api/file?path=" + encodeURIComponent(path));
   $("#file-title").textContent = "📄 " + d.path; $("#file-text").textContent = d.text; $("#dlg-file").showModal();
 }
-function status(text, cls = "") { $("#now").textContent = text; $("#now").className = cls; }
+let waitingSince = 0, waitingLabel = "";
+function status(text, cls = "") { $("#now").textContent = text; $("#now").className = cls; waitingSince = 0; }
+setInterval(() => { if (waitingSince) $("#now").textContent = `${waitingLabel} ${((Date.now() - waitingSince) / 1000).toFixed(0)}초째 (긴 계획은 30초 넘게 걸리기도 해요)`; }, 1000);
 
 // ───────── 대화 ─────────
 function say(cls, text) { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; $("#chat").append(d); d.scrollIntoView({ block: "end" }); }
@@ -171,16 +175,16 @@ function approvalCard(v) {
   const d = document.createElement("div"); d.className = "card"; d.id = "ap-" + v.id;
   if (v.plan) {
     const pick = {}; v.plan.items.forEach((it) => pick[it.id] = { action: it.status === "rejected" ? "reject" : "approve" });
-    d.innerHTML = `<b>✋ 계획표 심사 · v${v.plan.version}</b> <span class="muted">항목마다 ✅ ❌ ✏️ 고르고 보내세요. 노란 줄 = 지난 버전에서 바뀜</span>
-      <table><tr><th>#</th><th>지금</th><th>옮길 곳</th><th>이유</th><th></th></tr>${v.plan.items.map((it) =>
-        `<tr data-id="${it.id}" class="${it.changed ? "changed" : ""}"><td>${it.id}</td><td>${esc(it.src)}</td><td class="dst">${esc(it.dst)}</td><td>${esc(it.reason)}</td>
-         <td class="pick"><button type="button" data-a="approve">✅</button><button type="button" data-a="reject">❌</button><button type="button" data-a="edit">✏️</button></td></tr>`).join("")}</table>
+    d.innerHTML = `<b>✋ 계획표 심사 · v${v.plan.version} · ${v.plan.items.length}개</b><br><span class="muted">기본은 전부 ✅. 빼고 싶으면 ❌, 고치려면 ✏️. 노란 줄 = 지난 버전에서 바뀜</span>
+      <div class="plan">${v.plan.items.map((it) =>
+        `<div class="row ${it.changed ? "changed" : ""}" data-id="${it.id}"><span class="pick"><button type="button" data-a="approve">✅</button><button type="button" data-a="reject">❌</button><button type="button" data-a="edit">✏️</button></span>
+         <span class="what">${it.id}. ${esc(it.src)}<br>→ <b class="dst">${esc(it.dst)}</b> ${it.reason ? `<small>· ${esc(it.reason)}</small>` : ""}</span></div>`).join("")}</div>
       <input class="note-in" style="width:100%;margin-top:6px" placeholder="💬 한마디 (예: 스크린샷은 다 한 방에) — 쓰면 계획을 다시 짭니다">
       <div style="text-align:right;margin-top:4px"><button type="button" class="no">전체 취소</button> <button type="button" class="primary yes">보내기</button></div>`;
-    const paint = () => d.querySelectorAll("tr[data-id]").forEach((tr) => {
-      const p = pick[tr.dataset.id]; tr.classList.toggle("rej", p.action === "reject");
+    const paint = () => d.querySelectorAll(".row[data-id]").forEach((tr) => {
+      const p = pick[tr.dataset.id]; tr.classList.toggle("rej", p.action === "reject"); tr.classList.toggle("edit", p.action === "edit");
       tr.querySelectorAll(".pick button").forEach((b) => b.classList.toggle("on", b.dataset.a === p.action)); });
-    d.querySelectorAll("tr[data-id]").forEach((tr) => tr.querySelectorAll(".pick button").forEach((b) => b.onclick = () => {
+    d.querySelectorAll(".row[data-id]").forEach((tr) => tr.querySelectorAll(".pick button").forEach((b) => b.onclick = () => {
       const id = tr.dataset.id;
       if (b.dataset.a === "edit") { const nv = prompt("새 위치 (폴더/이름)", tr.querySelector(".dst").textContent); if (!nv) return; pick[id] = { action: "edit", dst: nv }; tr.querySelector(".dst").textContent = nv; }
       else pick[id] = { action: b.dataset.a };
@@ -217,6 +221,7 @@ const elapsed = () => ((Date.now() - t0) / 1000).toFixed(1) + "초";
 
 function onEvent(e) {
   const d = e.data || {}, ag = e.agent;
+  if (!t0) t0 = Date.now();  // 실행 도중에 새로고침해도 시간이 이상하게 나오지 않게
   $("#log").textContent += JSON.stringify(e) + "\n";
   switch (e.event_type) {
     case "state": S = d; render(); break;
@@ -225,7 +230,7 @@ function onEvent(e) {
     case "agent.start": turn = null;
       note(`<div class="agent">${esc(d.title)} <small>손 ${d.hands.length}개 · 턴 한도 ${d.knobs.max_turns}${d.hands_off.length ? " · 꺼진 손: " + esc(d.hands_off.join(", ")) : ""}</small></div>`); break;
     case "skill.loaded": note(`📘 스킬 ${esc(d.skills.join(", "))}을 읽음 (+${d.chars}자 → AI에게 보내는 글이 늘어남)`, "good"); break;
-    case "model.send": newTurn(ag); status(`🧠 ${ag} 생각 중… (턴 ${totals.turns} · ${elapsed()})`); break;
+    case "model.send": newTurn(ag); status(""); waitingLabel = `🧠 ${ag} 생각 중… 턴 ${totals.turns} ·`; waitingSince = Date.now(); break;
     case "model.response": {
       const r = d.response || {}; const u = d.usage || {};
       totals.tokens += (u.total_tokens || (u.prompt_tokens || 0) + (u.completion_tokens || 0) || 0);
@@ -257,6 +262,7 @@ function onEvent(e) {
     case "error.card": errCard(d); note(`❌ [${esc(d.stage)}] ${esc(d.what)}`, "bad"); status(`❌ [${d.stage}] ${d.what}`, "err"); break;
     case "chat.reply": say("ai", d.text); break;
     case "run.end": if (!$("#now").classList.contains("err")) status(`✅ 끝 · 턴 ${totals.turns} · 손 ${totals.tools}번 · 토큰 ${totals.tokens} · ${elapsed()}`, "done");
+      t0 = 0;
       api("/api/state").then((s) => { S = s; render(); }); break;
   }
   $("#totals").textContent = totals.turns ? `턴 ${totals.turns} · 손 ${totals.tools} · 토큰 ${totals.tokens}` : "";
