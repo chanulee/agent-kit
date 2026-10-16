@@ -1,0 +1,16 @@
+title: "나의 에이전트"
+
+# 쓸 수 있는 도구 (tools/ 폴더의 함수 이름). 화면의 체크박스와 같습니다.
+# 1단계(챗봇): 비워 둡니다. 2단계에 list_files, peek_file, file_info 를 넣습니다.
+tools: []
+
+# 스킬 (skills/<이름>/SKILL.md). 3단계에 curator, 5단계에 research-note.
+skills: []
+
+# ── 루프 조절 ──
+max_turns: 8              # 루프를 최대 몇 바퀴 돌지
+limits: {web: 5}          # 한 번의 질문에서 웹 도구를 몇 번까지 쓸지 (web_search + web_read)
+no_repeat: true           # 같은 도구를 같은 값으로 또 부르면 다시 실행하지 않음
+ask_before: []            # 실행 전에 승인을 받을 도구. 4단계: [move_files]  5단계에 write_file 도 넣기
+retry: 4                  # 서버가 바쁠 때(429/503) 기다렸다 다시 부르는 횟수
+remember_tool_results: false  # true면 읽은 내용을 다음 질문에도 기억 (글 양이 커짐)

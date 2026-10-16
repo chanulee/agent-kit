@@ -12,41 +12,42 @@
   button,input,select,textarea { font:inherit; } button { border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 10px; cursor:pointer; }
   button.primary { background:var(--blue); color:#fff; border-color:var(--blue); } button:disabled { opacity:.5; }
   .muted { color:var(--muted); } .hidden { display:none!important; }
-  /* 상태바 */
   #bar { background:#fff; border-bottom:1px solid var(--line); padding:8px 14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
   #bar .chip { padding:2px 9px; border-radius:999px; background:#efede8; font-size:.9em; }
-  .seg button { border-radius:0; margin-left:-1px; } .seg button:first-child { border-radius:8px 0 0 8px; } .seg button:last-child { border-radius:0 8px 8px 0; }
-  .seg button.on { background:var(--blue); color:#fff; }
   #now { flex-basis:100%; font-weight:700; padding:6px 10px; border-radius:8px; background:#eef2ff; }
   #now.wait { background:var(--yellow); } #now.err { background:#fdecec; color:var(--red); } #now.done { background:#e6f6ea; }
-  /* 본문 */
-  main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(300px,1fr) minmax(340px,1.2fr) 300px; gap:10px; padding:10px; }
+  main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(300px,1fr) minmax(340px,1.2fr) 320px; gap:10px; padding:10px; }
   main.noparts { grid-template-columns:minmax(300px,1fr) minmax(340px,1.4fr); } main.noparts #parts { display:none; }
   section { background:var(--card); border:1px solid var(--line); border-radius:12px; display:flex; flex-direction:column; min-height:0; }
   section h3 { margin:0; padding:8px 12px; border-bottom:1px solid var(--line); font-size:1em; display:flex; justify-content:space-between; align-items:center; }
   .scroll { overflow:auto; padding:10px; flex:1; }
-  /* 대화 */
   .msg { padding:8px 11px; border-radius:12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; max-width:92%; }
   .me { background:var(--blue); color:#fff; margin-left:auto; } .ai { background:#f1efea; }
   .card { border:2px solid var(--orange); background:#fff8f0; border-radius:10px; padding:8px 10px; margin:6px 0; }
   .card.err { border-color:var(--red); background:#fdecec; } .card.ok { border-color:var(--line); background:#fafaf8; }
   .plan { max-height:45vh; overflow:auto; border:1px solid var(--line); border-radius:8px; background:#fff; margin-top:6px; font-size:.92em; }
+  .preview { max-height:28vh; overflow:auto; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px; white-space:pre-wrap; }
   .row { display:flex; gap:6px; align-items:flex-start; padding:4px 6px; border-bottom:1px solid var(--line); }
   .row .what { flex:1; min-width:0; word-break:break-all; } .row .what small { color:var(--muted); }
   .row.changed { background:var(--yellow); } .row.rej .what { text-decoration:line-through; color:var(--muted); } .row.edit { background:#f3e8fb; }
   .pick button { padding:1px 6px; } .pick button.on { outline:2px solid var(--blue); }
   #composer { display:flex; gap:6px; padding:8px; border-top:1px solid var(--line); } #composer textarea { flex:1; resize:none; border:1px solid var(--line); border-radius:8px; padding:6px; }
-  /* 루프 타임라인 */
-  .agent { margin:10px 0 4px; font-weight:800; } .agent small { font-weight:400; color:var(--muted); }
-  .turn { border:1px solid var(--line); border-radius:10px; padding:6px 9px; margin:6px 0; }
+  .agent-section { margin:8px 0; padding:6px 8px 4px; border:1px solid var(--line); border-radius:12px; background:#fafaf8; }
+  .agent { margin:2px 0 6px; font-weight:800; } .agent small { font-weight:400; color:var(--muted); }
+  .pipeline { display:flex; gap:8px; align-items:stretch; margin:0 0 8px; }
+  .pipe { flex:1; border:1px solid var(--line); border-radius:10px; padding:6px 8px; background:#fff; }
+  .pipe.on { outline:2px solid var(--blue); background:#eef2ff; } .pipe.done { background:#e6f6ea; }
+  .pipeline .arrow { align-self:center; font-weight:800; color:var(--muted); }
+  .handoff { margin:8px 0; padding:8px 10px; border-radius:10px; background:#eef2ff; border:1px dashed var(--blue); }
+  .turn { border:1px solid var(--line); border-radius:10px; padding:6px 9px; margin:6px 0; background:#fff; }
   .turn .h { display:flex; justify-content:space-between; font-weight:700; } .turn .h span:last-child { font-weight:400; color:var(--muted); font-size:.9em; }
   .step { margin:3px 0 0 6px; } .step.bad { color:var(--red); } .step.warn { color:var(--orange); }
   .note { margin:6px 0; padding:4px 8px; border-left:4px solid var(--line); font-size:.92em; }
-  .note.warn { border-color:var(--orange); background:#fff4e6; } .note.bad { border-color:var(--red); background:#fdecec; } .note.good { border-color:var(--green); }
+  .note.warn { border-color:var(--orange); background:#fff4e6; } .note.bad { border-color:var(--red); background:#fdecec; } .note.good { border-color:var(--green); background:#f3faf4; }
   details summary { cursor:pointer; color:var(--muted); font-size:.9em; } pre { white-space:pre-wrap; word-break:break-word; background:#f8f7f4; padding:6px; border-radius:6px; font-size:.85em; max-height:220px; overflow:auto; margin:3px 0; }
-  /* 부품 */
   #parts label { display:flex; gap:6px; align-items:center; padding:2px 0; } #parts .why { color:var(--red); font-size:.8em; }
   #parts h4 { margin:12px 0 4px; } #parts input[type=number] { width:60px; }
+  #parts .hint { margin:0 0 4px; font-size:.86em; }
   #log { max-height:30vh; } #logwrap { margin:0 10px 10px; }
   dialog { border:0; border-radius:14px; width:min(680px,94vw); box-shadow:0 20px 60px #0004; } dialog pre { max-height:60vh; }
   .files { max-height:40vh; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:4px 8px; }
@@ -55,9 +56,9 @@
 <body>
 <div id="bar">
   <b>🎟️ 에이전트 대시보드</b>
-  <span class="seg" id="levels"></span>
   <span id="chips"></span>
   <button id="btn-folder">📁 폴더 고르기</button>
+  <button id="btn-team" class="primary">👥 팀 실행</button>
   <button id="btn-undo">↩️ 되돌리기</button>
   <a href="/gallery" target="_blank"><button>🖼️ 갤러리</button></a>
   <span style="flex:1"></span>
@@ -69,20 +70,20 @@
 <main id="main">
   <section><h3>💬 대화 <small class="muted">에이전트의 말</small></h3>
     <div class="scroll" id="chat"></div>
-    <form id="composer"><textarea id="input" rows="2" placeholder="말을 걸어 보세요. 링크를 붙여 넣으면 읽어 봅니다 (Enter 보내기)"></textarea>
+    <form id="composer"><textarea id="input" rows="2" placeholder="말을 걸어 보세요 (Enter 보내기). 도구를 켜야 폴더를 볼 수 있어요."></textarea>
       <div style="display:flex;flex-direction:column;gap:4px"><button class="primary">보내기</button><button type="button" id="btn-stop">⏹ 멈춤</button><button type="button" id="btn-new">새 대화</button></div></form>
   </section>
-  <section><h3>🔁 루프 <small class="muted">에이전트의 행동 (=로그)</small><span id="totals" class="muted"></span></h3>
-    <div class="scroll" id="loop"><p class="muted">여기에 루프가 한 바퀴씩 쌓입니다: 🧠 생각 → 🔧 손 → 결과 → 다시 🧠</p></div>
+  <section><h3>🔁 루프 <small class="muted">에이전트의 행동</small><span id="totals" class="muted"></span></h3>
+    <div class="scroll" id="loop"><p class="muted">여기에 루프가 한 바퀴씩 쌓입니다: 🧠 생각 → 🔧 도구 → 결과 → 다시 🧠</p></div>
   </section>
-  <section id="parts"><h3>🧩 부품 <small class="muted">켜고 끄면 파일이 바뀜</small></h3><div class="scroll" id="partsbody"></div></section>
+  <section id="parts"><h3>🧩 부품 <small class="muted">켜면 설정 파일이 바뀜</small></h3><div class="scroll" id="partsbody"></div></section>
 </main>
 <details id="logwrap"><summary>📜 원본 로그 (runs/…/trace.jsonl 과 같은 내용)</summary><pre id="log"></pre></details>
 
 <dialog id="dlg-folder"><form method="dialog" style="padding:14px 16px">
   <h3 style="margin-top:0">📁 일할 폴더 고르기</h3>
   <p style="background:var(--yellow);padding:6px 9px;border-radius:8px">원본은 그대로 두고 <b>사본</b>을 만듭니다. 파일 <b>이름과 앞부분</b>은 AI 서버로 갑니다. 싫은 파일은 체크를 빼세요.</p>
-  <label><input type="radio" name="kind" value="sample" checked> 샘플 폴더 (가상의 학생 다운로드 40개)</label><br>
+  <label><input type="radio" name="kind" value="sample" checked> 샘플 폴더 (가상의 학생 다운로드)</label><br>
   <label><input type="radio" name="kind" value="downloads"> 내 다운로드 폴더</label><br>
   <label><input type="radio" name="kind" value="path"> 폴더 경로 붙여 넣기 (Finder에서 폴더를 끌어다 놓아도 됨)</label>
   <input id="folder-path" style="width:100%;margin:4px 0" placeholder="/Users/나/Desktop/레퍼런스">
@@ -97,8 +98,16 @@
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pretty = (v) => { try { return JSON.stringify(typeof v === "string" ? JSON.parse(v) : v, null, 2); } catch { return String(v); } };
-let S = null, editAgent = null, lastActive = null, turn = null, totals = { turns: 0, tokens: 0, tools: 0 }, t0 = 0;
-const LEVELS = [["L1", "L1 챗봇"], ["L2", "L2 고정 순서"], ["L3", "L3 에이전트"], ["L4", "L4 에이전트 셋"]];
+let S = null, editAgent = null, turn = null, section = null, totals = { turns: 0, tokens: 0, tools: 0 }, t0 = 0;
+const GROUPS = ["폴더 보기", "정리", "파일 쓰기", "웹", "미술관 API", "기타"];
+const HINTS = {
+  "폴더 보기": "2단계. 켜면 폴더 사본을 살펴봅니다.",
+  "정리": "3~4단계. propose_plan은 계획만, move_files가 옮깁니다. 옮기기 옆 ✋을 켜면 승인을 받습니다.",
+  "파일 쓰기": "5단계. write_file 옆 ✋을 켜면, 쓸 내용이 승인 카드에 먼저 나옵니다.",
+  "웹": "5단계. 아래 MCP를 켜면 검색·읽기 도구가 나타납니다.",
+  "미술관 API": "6단계. 주로 준비된 도슨트가 씁니다. 작품 정보는 코드가 미술관 API에서 가져옵니다.",
+  "기타": "수업 흐름 밖의 도구입니다. 없어도 됩니다.",
+};
 
 async function api(path, body) {
   const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -108,50 +117,77 @@ async function api(path, body) {
 }
 const set = (target, key, value) => api("/api/set", { target, key, value }).then((d) => { S = d.state; render(); }).catch((e) => errCard({ stage: "설정", what: e.message, todo: "값을 확인하세요" }));
 
-// ───────── 상태바와 부품 ─────────
 function render() {
   if (!S) return;
   if (S.error) { status("❌ " + S.error, "err"); return; }
-  $("#levels").innerHTML = LEVELS.map(([k, n]) => `<button class="${S.level === k ? "on" : ""}" data-l="${k}">${n}</button>`).join("");
-  document.querySelectorAll("#levels button").forEach((b) => b.onclick = () => set("config", "level", b.dataset.l));
-  const f = S.folder;
-  $("#chips").innerHTML = `<span class="chip">${S.keys.model ? "✅" : "❌"} 모델 ${esc((S.model || "").split(":").pop())}</span>
-    <span class="chip">${S.keys.web ? "✅" : "❌"} 웹(Tavily)</span>
+  const f = S.folder, webOn = !!(S.mcp && S.mcp.tavily && S.mcp.tavily.enabled);
+  $("#chips").innerHTML = `<span class="chip">${S.keys.model ? "✅" : "❌"} 모델 ${esc((S.model || "").split(":").pop())} ${S.keys.model ? "연결됨" : "키 없음"}</span>
+    <span class="chip">${S.keys.web ? "✅" : "❌"} Tavily 키 ${S.keys.web ? "있음" : "없음"}</span>
+    <span class="chip">${webOn ? "✅" : "⏸"} 웹 검색 ${webOn ? "켜짐" : "꺼짐"}</span>
     <span class="chip">${f.ok ? "✅ 사본 " + f.files + "개" : "❌ 사본 없음"}</span>`;
-  const active = S.level === "L3" ? S.agent : S.level === "L4" ? "curator" : "chatbot";
-  if (active !== lastActive || !S.agents[editAgent]) { editAgent = active; lastActive = active; }  // 단계를 바꾸면 지금 일하는 에이전트를 보여 줌
+  if (!editAgent || !S.agents[editAgent]) editAgent = S.agent;
   renderParts();
 }
 function renderParts() {
   const a = S.agents[editAgent] || {};
   const names = Object.keys(S.agents);
-  let h = `<label>편집할 에이전트 <select id="pick-agent">${names.map((n) => `<option value="${n}" ${n === editAgent ? "selected" : ""}>${esc(S.agents[n].title)}</option>`).join("")}</select></label>`;
-  if (S.level === "L3") h += `<label><input type="checkbox" id="use-agent" ${S.agent === editAgent ? "checked" : ""}> L3에서 이 에이전트 쓰기</label>`;
+  const mcpOn = !!(S.mcp && S.mcp.tavily && S.mcp.tavily.enabled);
+  const mcpTools = new Set((S.mcp && S.mcp.tavily && S.mcp.tavily.tools) || ["web_search", "web_read"]);
+  let h = `<p class="hint muted">대화는 <b>${esc((S.agents[S.agent] || {}).title || S.agent)}</b>와 합니다. 도슨트는 [팀 실행]에서만 일합니다.</p>`;
+  h += `<label>부품을 볼 에이전트 <select id="pick-agent">${names.map((n) => `<option value="${n}" ${n === editAgent ? "selected" : ""}>${esc(S.agents[n].title)}${S.agents[n].prepared ? " (준비됨)" : ""}</option>`).join("")}</select></label>`;
   if (a.error) h += `<p class="why">${esc(a.error)}</p>`;
-  h += `<h4>✋ 손 (도구) <button data-file="agents/${editAgent}/agent.yaml">📄</button></h4>`;
-  h += Object.entries(S.hands).map(([n, x]) => `<label title="${esc(x.why)}"><input type="checkbox" data-hand="${n}" ${(a.hands || []).includes(n) ? "checked" : ""} ${n.startsWith("(") ? "disabled" : ""}>
+  h += `<h4>🔧 도구 <button data-file="agents/${editAgent}/agent.yaml">📄 agent.yaml</button></h4>`;
+  const byGroup = {};
+  Object.entries(S.tools || {}).forEach(([n, x]) => {
+    if (mcpTools.has(n) && !mcpOn && !(a.tools || []).includes(n)) return;
+    (byGroup[x.group || "기타"] ||= []).push([n, x]);
+  });
+  GROUPS.forEach((g) => {
+    const rows = byGroup[g];
+    if (!rows && g === "웹" && !mcpOn) {
+      h += `<h4>웹</h4><p class="hint muted">${HINTS["웹"]}</p>`;
+      return;
+    }
+    if (!rows) return;
+    h += `<h4>${esc(g)}</h4><p class="hint muted">${esc(HINTS[g] || "")}</p>`;
+    h += rows.map(([n, x]) => `<label title="${esc(x.why)}"><input type="checkbox" data-tool="${n}" ${(a.tools || []).includes(n) ? "checked" : ""} ${n.startsWith("(") ? "disabled" : ""}>
       ${x.icon} ${esc(n)} <span class="muted">${esc(x.module)}.py</span> ${x.ok ? "" : `<span class="why">${esc(x.why)}</span>`}
-      ${(a.hands || []).includes(n) ? `<span title="실행 전에 사람 승인">✋<input type="checkbox" data-ask="${n}" ${(a.ask_before || []).includes(n) ? "checked" : ""}></span>` : ""}</label>`).join("");
-  h += `<h4>🔁 루프 손잡이</h4>
+      ${(a.tools || []).includes(n) ? `<span title="실행 전에 사람 승인">✋<input type="checkbox" data-ask="${n}" ${(a.ask_before || []).includes(n) ? "checked" : ""}></span>` : ""}</label>`).join("");
+  });
+  h += `<h4>📘 스킬 <span class="muted">업무 매뉴얼</span></h4><p class="hint muted">3단계 curator(정리 규칙), 5단계 research-note(노트 형식).</p>`;
+  h += (S.skills || []).map((s) => `<div style="display:flex;gap:6px;align-items:center"><label style="flex:1"><input type="checkbox" data-skill="${esc(s.name)}" ${(a.skills || []).includes(s.name) ? "checked" : ""}> ${esc(s.name)} <span class="muted">${esc(s.title)}</span></label>
+      <button type="button" data-file="skills/${esc(s.name)}/SKILL.md">📄</button></div>`).join("");
+  const note = (S.mcp && S.mcp.tavily && S.mcp.tavily.note) || "";
+  h += `<h4>🔌 MCP <button data-file="mcp.json">📄 mcp.json</button></h4>
+    <p class="hint muted">${esc(note)}</p>
+    <label><input type="checkbox" id="mcp-tavily" ${mcpOn ? "checked" : ""}> Tavily 웹 검색 켜기 ${S.keys.web ? "" : `<span class="why">.env에 TAVILY_API_KEY가 없습니다</span>`}</label>
+    <p class="hint muted">켜고 끄기는 모두에게 적용됩니다. 웹 도구를 목록에 넣는 것은 나의 에이전트입니다.</p>`;
+  h += `<h4>🔁 루프 조절</h4>
     <label>턴 한도 <input type="number" min="1" max="30" data-knob="max_turns" value="${a.max_turns ?? 8}"></label>
-    <label>웹 손 한도 <input type="number" min="0" max="20" data-limit="web" value="${(a.limits || {}).web ?? ""}" placeholder="없음"></label>
+    <label>웹 도구 한도 <input type="number" min="0" max="20" data-limit="web" value="${(a.limits || {}).web ?? ""}" placeholder="없음"></label>
     <label><input type="checkbox" data-knob="no_repeat" ${a.no_repeat ? "checked" : ""}> 같은 호출 막기</label>
     <label>기다렸다 다시 <input type="number" min="0" max="8" data-knob="retry" value="${a.retry ?? 4}">번</label>
-    <label><input type="checkbox" data-knob="remember_tool_results" ${a.remember_tool_results ? "checked" : ""}> 읽은 내용 기억하기 (비용↑)</label>
-    <h4>📝 말투·규칙</h4><button data-file="agents/${editAgent}/persona.md">persona.md</button> ${(a.skills || []).map((s) => `<button data-file="skills/${s}/SKILL.md">SKILL.md</button>`).join("")}
-    <button data-file="config.yaml">config.yaml</button>`;
+    <label><input type="checkbox" data-knob="remember_tool_results" ${a.remember_tool_results ? "checked" : ""}> 읽은 내용 기억하기 (글 양이 커짐)</label>
+    <h4>📝 말투·규칙</h4>
+    <button data-file="agents/${editAgent}/persona.md">persona.md</button>
+    <button data-file="agents/${editAgent}/agent.yaml">agent.yaml</button>
+    <button data-file="config.yaml">config.yaml</button>
+    <button data-file="mcp.json">mcp.json</button>`;
   $("#partsbody").innerHTML = h;
   const T = "agent:" + editAgent;
   $("#pick-agent").onchange = (e) => { editAgent = e.target.value; renderParts(); };
-  if ($("#use-agent")) $("#use-agent").onchange = () => set("config", "agent", editAgent);
-  document.querySelectorAll("[data-hand]").forEach((c) => c.onchange = () => {
-    const list = new Set(a.hands || []); c.checked ? list.add(c.dataset.hand) : list.delete(c.dataset.hand); set(T, "hands", [...list]); });
+  document.querySelectorAll("[data-tool]").forEach((c) => c.onchange = () => {
+    const list = new Set(a.tools || []); c.checked ? list.add(c.dataset.tool) : list.delete(c.dataset.tool); set(T, "tools", [...list]); });
   document.querySelectorAll("[data-ask]").forEach((c) => c.onchange = () => {
     const list = new Set(a.ask_before || []); c.checked ? list.add(c.dataset.ask) : list.delete(c.dataset.ask); set(T, "ask_before", [...list]); });
+  document.querySelectorAll("[data-skill]").forEach((c) => c.onchange = () => {
+    const list = new Set(a.skills || []); c.checked ? list.add(c.dataset.skill) : list.delete(c.dataset.skill); set(T, "skills", [...list]); });
   document.querySelectorAll("[data-knob]").forEach((c) => c.onchange = () => set(T, c.dataset.knob, c.type === "checkbox" ? c.checked : +c.value));
   document.querySelectorAll("[data-limit]").forEach((c) => c.onchange = () => {
     const l = { ...(a.limits || {}) }; c.value === "" ? delete l[c.dataset.limit] : l[c.dataset.limit] = +c.value; set(T, "limits", l); });
   document.querySelectorAll("[data-file]").forEach((b) => b.onclick = () => showFile(b.dataset.file));
+  const mcpBox = $("#mcp-tavily");
+  if (mcpBox) mcpBox.onchange = () => api("/api/mcp", { name: "tavily", enabled: mcpBox.checked, agent: S.agent }).then((d) => { S = d.state; render(); }).catch((e) => errCard({ stage: "MCP", what: e.message, todo: "mcp.json을 확인하세요" }));
 }
 async function showFile(path) {
   const d = await api("/api/file?path=" + encodeURIComponent(path));
@@ -161,7 +197,6 @@ let waitingSince = 0, waitingLabel = "";
 function status(text, cls = "") { $("#now").textContent = text; $("#now").className = cls; waitingSince = 0; }
 setInterval(() => { if (waitingSince) $("#now").textContent = `${waitingLabel} ${((Date.now() - waitingSince) / 1000).toFixed(0)}초째 (긴 계획은 30초 넘게 걸리기도 해요)`; }, 1000);
 
-// ───────── 대화 ─────────
 function say(cls, text) { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; $("#chat").append(d); d.scrollIntoView({ block: "end" }); }
 function errCard(c) {
   const d = document.createElement("div"); d.className = "card err";
@@ -192,6 +227,13 @@ function approvalCard(v) {
     paint();
     d.querySelector(".yes").onclick = () => decide(v.id, { action: "submit", items: pick, comment: d.querySelector(".note-in").value });
     d.querySelector(".no").onclick = () => decide(v.id, { action: "deny", comment: d.querySelector(".note-in").value });
+  } else if (v.preview) {
+    d.innerHTML = `<b>✋ 이 노트를 파일로 쓸까요?</b><br><span class="muted">${esc(v.preview.path)} · ${v.preview.chars || (v.preview.content || "").length}자</span>
+      <pre class="preview">${esc(v.preview.content || "")}</pre>
+      <input class="note-in" style="width:100%;margin-top:6px" placeholder="💬 한마디 (선택)">
+      <div style="text-align:right;margin-top:4px"><button type="button" class="no">❌ 거절</button> <button type="button" class="primary yes">✅ 승인</button></div>`;
+    d.querySelector(".yes").onclick = () => decide(v.id, { action: "approve", comment: d.querySelector(".note-in").value });
+    d.querySelector(".no").onclick = () => decide(v.id, { action: "deny", comment: d.querySelector(".note-in").value });
   } else {
     d.innerHTML = `<b>✋ ${esc(v.tool)} 실행해도 될까요?</b><pre>${esc(pretty(v.args))}</pre>
       <input class="note-in" style="width:100%" placeholder="💬 한마디 (선택)">
@@ -208,67 +250,88 @@ async function send(text) {
   try { await api("/api/chat", { text }); $("#input").value = ""; } catch (e) { errCard({ stage: "보내기", what: e.message, todo: "잠시 뒤 다시" }); }
 }
 
-// ───────── 루프 타임라인 (aisuite 이벤트 → 화면) ─────────
-function note(html, cls = "") { const d = document.createElement("div"); d.className = "note " + cls; d.innerHTML = html; $("#loop").append(d); d.scrollIntoView({ block: "end" }); return d; }
+function loopHost() { return section || $("#loop"); }
+function note(html, cls = "") { const d = document.createElement("div"); d.className = "note " + cls; d.innerHTML = html; loopHost().append(d); d.scrollIntoView({ block: "end" }); return d; }
 function newTurn(agent) {
   totals.turns++; turn = document.createElement("div"); turn.className = "turn";
-  turn.innerHTML = `<div class="h"><span>턴 ${totals.turns}</span><span class="t">🧠 생각 중…</span></div><div class="body"></div>`;
-  $("#loop").append(turn); turn.scrollIntoView({ block: "end" }); turn.started = Date.now();
+  const who = agent ? `<span class="muted">${esc(agent)} · </span>` : "";
+  turn.innerHTML = `<div class="h"><span>${who}턴 ${totals.turns}</span><span class="t">🧠 생각 중…</span></div><div class="body"></div>`;
+  loopHost().append(turn); turn.scrollIntoView({ block: "end" }); turn.started = Date.now();
 }
 function step(html, cls = "") { if (!turn) newTurn(); const s = document.createElement("div"); s.className = "step " + cls; s.innerHTML = html; turn.querySelector(".body").append(s); s.scrollIntoView({ block: "end" }); return s; }
 const isErr = (r) => /^"?error:/.test(String(r || "").trim()) || String(r || "").includes('"error":');
 const elapsed = () => ((Date.now() - t0) / 1000).toFixed(1) + "초";
+function paintPipe(name, cls) {
+  document.querySelectorAll(".pipe").forEach((p) => {
+    if (p.dataset.agent !== name) return;
+    if (cls === "done") p.classList.remove("on");
+    p.classList.add(cls);
+  });
+}
 
 function onEvent(e) {
   const d = e.data || {}, ag = e.agent;
-  if (!t0) t0 = Date.now();  // 실행 도중에 새로고침해도 시간이 이상하게 나오지 않게
+  if (!t0) t0 = Date.now();
   $("#log").textContent += JSON.stringify(e) + "\n";
   switch (e.event_type) {
     case "state": S = d; render(); break;
-    case "chat.user": t0 = Date.now(); totals = { turns: 0, tokens: 0, tools: 0 }; $("#loop").innerHTML = ""; turn = null;
-      say("me", d.text); status(`🧠 ${d.level} 시작…`); break;
-    case "agent.start": turn = null;
-      note(`<div class="agent">${esc(d.title)} <small>손 ${d.hands.length}개 · 턴 한도 ${d.knobs.max_turns}${d.hands_off.length ? " · 꺼진 손: " + esc(d.hands_off.join(", ")) : ""}</small></div>`); break;
-    case "skill.loaded": note(`📘 스킬 ${esc(d.skills.join(", "))}을 읽음 (+${d.chars}자 → AI에게 보내는 글이 늘어남)`, "good"); break;
+    case "chat.user": t0 = Date.now(); totals = { turns: 0, tokens: 0, tools: 0 }; $("#loop").innerHTML = ""; turn = null; section = null;
+      say("me", d.text); status(`🧠 ${d.mode || "대화"} 시작…`); break;
+    case "team.start": {
+      const bar = document.createElement("div"); bar.className = "pipeline"; bar.id = "pipeline";
+      bar.innerHTML = (d.steps || []).map((s, i) => `${i ? '<div class="arrow">→</div>' : ""}<div class="pipe" data-agent="${esc(s.name)}"><b>${i + 1}. ${esc(s.title)}</b><br><span class="muted">${esc(s.job)}</span></div>`).join("");
+      $("#loop").prepend(bar);
+      break; }
+    case "team.step": paintPipe(d.name, d.status === "done" ? "done" : "on"); if (d.status === "running") status(`👥 ${d.title} · ${d.job}`); break;
+    case "agent.start": {
+      section = document.createElement("div"); section.className = "agent-section";
+      section.innerHTML = `<div class="agent">${esc(d.title)} <small>도구 ${(d.tools || []).length}개 · 턴 한도 ${d.knobs.max_turns}${(d.tools_off || []).length ? " · 꺼진 도구: " + esc(d.tools_off.join(", ")) : ""}</small></div>`;
+      $("#loop").append(section); turn = null; paintPipe(ag, "on");
+      break; }
+    case "skill.loaded": note(`📘 스킬 ${esc((d.skills || []).join(", "))}을 읽음 (+${d.chars}자, 모델에게 보내는 글이 늘어남)`, "good"); break;
     case "model.send": newTurn(ag); status(""); waitingLabel = `🧠 ${ag} 생각 중… 턴 ${totals.turns} ·`; waitingSince = Date.now(); break;
     case "model.response": {
       const r = d.response || {}; const u = d.usage || {};
       totals.tokens += (u.total_tokens || (u.prompt_tokens || 0) + (u.completion_tokens || 0) || 0);
       if (turn) turn.querySelector(".t").textContent = `${((Date.now() - turn.started) / 1000).toFixed(1)}초 · 토큰 ${u.total_tokens || "?"}`;
       const calls = (r.tool_calls || []).map((c) => c.name || (c.function || {}).name);
-      step(calls.length ? `🧠 손을 고름: <b>${esc(calls.join(", "))}</b>` : `🧠 최종 답: ${esc((r.text_preview || "").slice(0, 160))}${(r.text_length || 0) > 160 ? "…" : ""}`);
+      step(calls.length ? `🧠 도구를 고름: <b>${esc(calls.join(", "))}</b>` : `🧠 최종 답: ${esc((r.text_preview || "").slice(0, 160))}${(r.text_length || 0) > 160 ? "…" : ""}`);
       break; }
-    case "tool.started": if (d.by) { turn = null; newTurn(); turn.querySelector(".t").textContent = "⚙️ 코드가 정한 순서"; }
-      totals.tools++; turn && (turn.lastStep = step(`🔧 <b>${esc(d.tool_name)}</b> <span class="muted">실행 중…</span><details><summary>인자</summary><pre>${esc(pretty(d.arguments))}</pre></details>`));
+    case "tool.started": totals.tools++; turn && (turn.lastStep = step(`🔧 <b>${esc(d.tool_name)}</b> <span class="muted">실행 중…</span><details><summary>인자</summary><pre>${esc(pretty(d.arguments))}</pre></details>`));
       status(`🔧 ${d.tool_name} 실행 중… (${elapsed()})`); break;
     case "tool.completed": case "tool.failed": {
       const res = d.result_preview ?? d.error ?? ""; const bad = e.event_type === "tool.failed" || isErr(res);
       const s = turn && turn.lastStep;
-      if (s) { s.classList.toggle("bad", bad); s.querySelector(".muted").textContent = bad ? "❌ 실패 (루프는 계속)" : "✅ 결과";
+      if (s) { s.classList.toggle("bad", bad); const m = s.querySelector(".muted"); if (m) m.textContent = bad ? "❌ 실패 (루프는 계속)" : "✅ 결과";
         s.insertAdjacentHTML("beforeend", `<details ${bad ? "open" : ""}><summary>결과</summary><pre>${esc(typeof res === "string" ? res : pretty(res))}</pre></details>`); }
       break; }
     case "tool.denied": step(`✋ <b>${esc(d.tool_name)}</b> 실행 안 함 — ${esc(d.reason || "")}`, "warn"); break;
-    case "loop.repeat_blocked": step(`♻️ 같은 호출(${esc(d.tool)}) → 다시 실행하지 않음 <span class="muted">(루프 손잡이: 같은 호출 막기)</span>`, "warn"); break;
-    case "loop.limit": step(`⛔ ${esc(d.tool)} 한도 ${d.limit}번 도달 <span class="muted">(루프 손잡이)</span>`, "warn"); break;
+    case "loop.repeat_blocked": step(`♻️ 같은 호출(${esc(d.tool)}) → 다시 실행하지 않음 <span class="muted">(루프 조절: 같은 호출 막기)</span>`, "warn"); break;
+    case "loop.limit": step(`⛔ ${esc(d.tool)} 한도 ${d.limit}번 도달 <span class="muted">(루프 조절)</span>`, "warn"); break;
     case "retry.waiting": note(`⏳ 서버가 바쁨(${d.code}) → ${d.wait_s}초 기다렸다 다시 (${d.attempt}/${d.max})`, "warn");
       status(`⏳ ${d.wait_s}초 기다리는 중 (재시도 ${d.attempt}/${d.max}) — 고장 아님, 서버 한도`, "wait"); break;
     case "approval.requested": approvalCard(d); note(`✋ 사람 승인 기다리는 중: ${esc(d.tool)}`, "warn"); status("✋ 승인 대기 — 왼쪽 카드에서 골라 주세요", "wait"); break;
     case "approval.resolved": { const c = $("#ap-" + d.id); if (c) { c.className = "card ok"; c.querySelectorAll("button,input").forEach((b) => b.disabled = true); }
       const a = d.answer || {}; note(`✋ 결정: ${a.action === "approve" ? "✅ 승인" : a.action === "deny" ? "❌ 거절" : "항목별 심사"}${a.comment ? " 💬 " + esc(a.comment) : ""}`); break; }
-    case "agent.handoff": note(`➡️ 넘겨주기: ${esc(d.from)} → ${esc(d.to)}`, "good"); break;
-    case "check.unmoved": note(`🔎 코드가 직접 확인: 안 옮긴 파일 ${d.files.length}개 ${esc(d.files.slice(0, 8).join(", "))}`); break;
+    case "agent.handoff": {
+      const box = document.createElement("div"); box.className = "handoff";
+      box.innerHTML = `<b>➡️ 넘겨주기</b><br>${esc(d.from_title || d.from)} → ${esc(d.to_title || d.to)}
+        ${d.passed ? `<details open><summary>넘긴 말</summary><pre>${esc(d.passed)}</pre></details>` : ""}`;
+      $("#loop").append(box); section = null; turn = null; box.scrollIntoView({ block: "end" });
+      say("ai", `➡️ ${d.from_title || d.from} → ${d.to_title || d.to}${d.passed ? "\n" + d.passed : ""}`);
+      break; }
+    case "check.unmoved": note(`🔎 코드가 직접 확인: 아직 원래 자리에 있는 파일 ${d.files.length}개 ${esc((d.files || []).slice(0, 8).join(", "))}`); break;
     case "run.max_turns": note(`⛔ 턴 한도 ${d.max_turns}에 도달해서 루프를 멈춤`, "warn"); break;
     case "warn.says_but_no_action": note("⚠️ " + esc(d.text), "warn"); say("ai", "⚠️ " + d.text); break;
     case "error.card": errCard(d); note(`❌ [${esc(d.stage)}] ${esc(d.what)}`, "bad"); status(`❌ [${d.stage}] ${d.what}`, "err"); break;
     case "chat.reply": say("ai", d.text); break;
-    case "run.end": if (!$("#now").classList.contains("err")) status(`✅ 끝 · 턴 ${totals.turns} · 손 ${totals.tools}번 · 토큰 ${totals.tokens} · ${elapsed()}`, "done");
+    case "run.end": if (!$("#now").classList.contains("err")) status(`✅ 끝 · 턴 ${totals.turns} · 도구 ${totals.tools}번 · 토큰 ${totals.tokens} · ${elapsed()}`, "done");
       t0 = 0;
       api("/api/state").then((s) => { S = s; render(); }); break;
   }
-  $("#totals").textContent = totals.turns ? `턴 ${totals.turns} · 손 ${totals.tools} · 토큰 ${totals.tokens}` : "";
+  $("#totals").textContent = totals.turns ? `턴 ${totals.turns} · 도구 ${totals.tools} · 토큰 ${totals.tokens}` : "";
 }
 
-// ───────── 폴더 고르기 ─────────
 async function loadFolder() {
   const kind = document.querySelector("input[name=kind]:checked").value, path = $("#folder-path").value;
   $("#folder-list").innerHTML = "<p class='muted'>읽는 중…</p>";
@@ -290,13 +353,18 @@ $("#folder-go").onclick = async (ev) => {
     $("#dlg-folder").close(); say("ai", `📁 사본을 만들었어요: ${r.copied}개 → ${r.dest}`); } catch (e) { alert(e.message); }
 };
 
-// ───────── 시작 ─────────
 $("#composer").onsubmit = (e) => { e.preventDefault(); const t = $("#input").value.trim(); if (t) send(t); };
 $("#input").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#composer").requestSubmit(); } };
 $("#btn-stop").onclick = () => api("/api/stop", {});
 $("#btn-new").onclick = () => api("/api/new_chat", {}).then(() => { $("#chat").innerHTML = ""; say("ai", "새 대화를 시작합니다 (에이전트 기억을 비웠어요)."); });
-$("#btn-undo").onclick = async () => { if (!confirm("옮긴 파일을 모두 원래 자리로 되돌릴까요?")) return;
+$("#btn-undo").onclick = async () => { if (!confirm("옮긴 파일을 모두 원래 자리로 되돌릴까요? (노트로 만든 파일은 그대로 있습니다)")) return;
   const r = await api("/api/undo", {}); say("ai", r.moves.length ? "↩️ 되돌림:\n" + r.moves.join("\n") : "되돌릴 이동이 없습니다."); };
+$("#btn-team").onclick = async () => {
+  const text = $("#input").value.trim();
+  if (!confirm("나의 에이전트가 먼저 일하고, 그다음 도슨트가 갤러리를 만듭니다. 시작할까요?")) return;
+  try { await api("/api/team", { text }); $("#input").value = ""; }
+  catch (e) { errCard({ stage: "팀 실행", what: e.message, todo: "끝나거나 [멈춤]을 누른 뒤 다시" }); }
+};
 $("#btn-parts").onclick = () => $("#main").classList.toggle("noparts");
 $("#btn-big").onclick = () => document.body.classList.toggle("big");
 api("/api/state").then((s) => { S = s; render(); if (!s.keys.model) errCard({ stage: "준비", what: "모델 키가 없습니다", todo: "키트 폴더의 .env 파일에 ZAI_API_KEY를 넣고 앱을 다시 켜세요" }); });

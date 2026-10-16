@@ -1,8 +1,8 @@
-"""파일 보기 손: 사본 폴더 안에서만, 읽기만 합니다. 엿보기는 앞 500자, 이미지는 크기만."""
+"""파일 보기 도구: 사본 폴더 안에서만, 읽기만 합니다. 엿보기는 앞 500자, 이미지는 크기만."""
 from collections import Counter
 from datetime import datetime
 
-from hands import find, folder, hand, nfc
+from tools import find, folder, nfc, tool
 
 SKIP = {".agentkit", ".DS_Store", "gallery.html", "_dates.json"}
 KINDS = {"이미지": ".png .jpg .jpeg .gif .webp .heic", "문서": ".pdf .doc .docx .hwp .txt .md .ppt .pptx .key",
@@ -20,10 +20,10 @@ def all_files():
     return [p for p in sorted(root.rglob("*")) if p.is_file() and not (set(p.relative_to(root).parts) & SKIP)]
 
 
-@hand("📂")
+@tool("📂", group="폴더 보기")
 def list_files() -> str:
     """List files in the copy folder, one per line: [ID] path | size | modified date. You can pass the ID number to other tools."""
-    from hands import STATE
+    from tools import STATE
     root, files = folder(), all_files()
     STATE["ids"] = {str(i): nfc(p.relative_to(root).as_posix()) for i, p in enumerate(files[:60], 1)}
     rows = [f"[{i}] {nfc(p.relative_to(root).as_posix())} | {p.stat().st_size // 1024}KB | "
@@ -31,7 +31,7 @@ def list_files() -> str:
     return f"파일 {len(files)}개\n" + "\n".join(rows) + ("\n…(60개까지만 보여 줌)" if len(files) > 60 else "")
 
 
-@hand("🔍")
+@tool("🔍", group="폴더 보기")
 def peek_file(path: str) -> str:
     """Peek at the first 500 characters of a text or PDF file. Images return only their size.
 
@@ -56,7 +56,7 @@ def peek_file(path: str) -> str:
     return f"error: 읽을 수 없는 형식({p.suffix or '확장자 없음'}, {k}). 이름과 크기로 추리하세요."
 
 
-@hand("ℹ️")
+@tool("ℹ️", group="폴더 보기")
 def file_info(path: str) -> str:
     """Get kind, size and modified date of one file.
 
@@ -68,7 +68,7 @@ def file_info(path: str) -> str:
     return f"{nfc(p.name)} | 종류 {kind(p.name)} | {st.st_size // 1024}KB | 수정 {datetime.fromtimestamp(st.st_mtime):%Y-%m-%d %H:%M}"
 
 
-@hand("🧮")
+@tool("🧮", group="폴더 보기")
 def count_by_type() -> str:
     """Count files by kind (images, documents, archives ...)."""
     c = Counter(kind(p.name) for p in all_files())

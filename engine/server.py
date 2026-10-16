@@ -12,12 +12,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 
 from engine import core
-from hands import move, nfc
+from tools import move, nfc
 
 ROOT = core.ROOT
 SAMPLE = ROOT / "sample_downloads"
 SENSITIVE = ["신분증", "여권", "주민", "통장", "계좌", "계약", "성적", "진단", "영수증", "passport", "bank", "password",
              "비밀번호", ".env", ".pem", ".key"]
+AGENT_KEYS = {"agent", "team_partner", "tools", "max_turns", "limits", "no_repeat", "ask_before", "retry",
+              "remember_tool_results", "skills"}
 
 
 def source_folder(kind: str, path: str = "") -> Path:
@@ -46,6 +48,19 @@ def preview(src: Path) -> list[dict]:
     return items
 
 
+def skill_catalog() -> list[dict]:
+    out = []
+    root = ROOT / "skills"
+    if not root.is_dir():
+        return out
+    for d in sorted(root.iterdir()):
+        md = d / "SKILL.md"
+        if md.is_file():
+            first = md.read_text(encoding="utf-8").splitlines()[0].lstrip("# ").strip()
+            out.append({"name": d.name, "title": first or d.name})
+    return out
+
+
 def state() -> dict:
     cfg = core.config()
     agents = {}
@@ -53,13 +68,20 @@ def state() -> dict:
         if (d / "agent.yaml").exists():
             try:
                 a = core.load_agent(d.name)
-                agents[d.name] = {k: a[k] for k in ("title", "hands", "max_turns", "limits", "no_repeat", "ask_before",
+                agents[d.name] = {k: a[k] for k in ("title", "tools", "max_turns", "limits", "no_repeat", "ask_before",
                                                     "retry", "remember_tool_results", "skills")}
+                agents[d.name]["prepared"] = d.name != cfg["agent"]
             except Exception as e:  # noqa: BLE001
                 agents[d.name] = {"title": d.name, "error": f"agent.yaml 오류: {e}"}
     f = cfg["folder_path"]
-    return {"level": cfg["level"], "agent": cfg["agent"], "model": cfg.get("model"), "agents": agents,
-            "hands": core.hand_status(),
+    mcp = {}
+    for name, raw in core.load_mcp().items():
+        if isinstance(raw, dict):
+            mcp[name] = {"enabled": bool(raw.get("enabled")), "tools": list(raw.get("tools") or []),
+                         "note": raw.get("note") or ""}
+    return {"agent": cfg["agent"], "team_partner": cfg.get("team_partner") or "docent",
+            "model": cfg.get("model"), "agents": agents, "tools": core.tool_status(), "skills": skill_catalog(),
+            "mcp": mcp,
             "keys": {"model": bool(os.environ.get(cfg.get("key_env", "ZAI_API_KEY"))),
                      "web": bool(os.environ.get("TAVILY_API_KEY"))},
             "folder": {"path": str(f), "ok": f.is_dir(),
@@ -75,7 +97,9 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
 
     def watch():  # 파일을 직접 고쳐도 화면이 따라오게 (3초 안)
         while True:
-            files = [ROOT / "config.yaml", *ROOT.glob("agents/*/agent.yaml"), *ROOT.glob("hands/*.py")]
+            files = [ROOT / "config.yaml", ROOT / "mcp.json",
+                     *ROOT.glob("agents/*/agent.yaml"), *ROOT.glob("agents/*/persona.md"),
+                     *ROOT.glob("tools/*.py"), *ROOT.glob("skills/*/SKILL.md")]
             now = {str(p): p.stat().st_mtime for p in files if p.exists()}
             if stamps and now != stamps.get("v"):
                 eng.bus.emit("state", safe_state())
@@ -111,8 +135,8 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
         b = await req.json()
         target, key, value = b.get("target", "config"), b["key"], b.get("value")
         path = ROOT / "config.yaml" if target == "config" else ROOT / "agents" / target.split(":", 1)[1] / "agent.yaml"
-        if key not in {"level", "agent", "hands", "max_turns", "limits", "no_repeat", "ask_before", "retry",
-                       "remember_tool_results"}:
+        allowed = {"agent", "team_partner"} if target == "config" else AGENT_KEYS
+        if key not in allowed:
             raise HTTPException(400, f"바꿀 수 없는 값: {key}")
         core.set_yaml(path, key, value)
         if target.startswith("agent:"):
@@ -121,10 +145,42 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
         eng.bus.emit("state", s)
         return {"file": str(path.relative_to(ROOT)), "state": s}
 
+    @app.post("/api/mcp")
+    async def set_mcp(req: Request):
+        """mcp.json 의 켜짐 스위치. 켜면 그 서버의 도구를 에이전트 목록에 넣고, 끄면 뺍니다."""
+        b = await req.json()
+        name = b.get("name") or "tavily"
+        enabled = bool(b.get("enabled"))
+        path = ROOT / "mcp.json"
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            raise HTTPException(400, f"mcp.json을 읽을 수 없습니다: {e}")
+        if name not in data or not isinstance(data[name], dict):
+            raise HTTPException(404, "mcp.json에 없는 이름입니다")
+        data[name]["enabled"] = enabled
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        agent = b.get("agent") or core.config()["agent"]
+        ypath = ROOT / "agents" / agent / "agent.yaml"
+        extra = [t for t in (data[name].get("tools") or []) if isinstance(t, str)]
+        if ypath.exists() and extra:
+            current = list(core.read_yaml(ypath).get("tools") or [])
+            if enabled:
+                for t in extra:
+                    if t not in current:
+                        current.append(t)
+            else:
+                current = [t for t in current if t not in extra]
+            core.set_yaml(ypath, "tools", current)
+            eng.history.pop(agent, None)
+        s = safe_state()
+        eng.bus.emit("state", s)
+        return {"file": "mcp.json", "state": s}
+
     @app.get("/api/file")
     def show_file(path: str):
         p = (ROOT / path).resolve()
-        if ROOT not in p.parents or p.suffix not in (".yaml", ".md", ".py", ".html") or ".env" in p.name:
+        if ROOT not in p.parents or p.suffix not in (".yaml", ".md", ".py", ".html", ".json") or ".env" in p.name:
             raise HTTPException(404)
         return {"path": path, "text": p.read_text(encoding="utf-8")}
 
@@ -136,6 +192,15 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
         if eng.busy.locked():
             raise HTTPException(409, "아직 이전 질문을 처리 중입니다. 끝나거나 [멈춤]을 누른 뒤 보내세요.")
         threading.Thread(target=eng.run, args=(text,), daemon=True).start()
+        return {"ok": True}
+
+    @app.post("/api/team")
+    async def team(req: Request):
+        body = await req.json()
+        text = (body.get("text") or "").strip() or "이 폴더를 정리하고, 어울리는 작품으로 갤러리를 만들어 줘."
+        if eng.busy.locked():
+            raise HTTPException(409, "아직 이전 질문을 처리 중입니다. 끝나거나 [멈춤]을 누른 뒤 보내세요.")
+        threading.Thread(target=eng.run, args=(text,), kwargs={"mode": "team"}, daemon=True).start()
         return {"ok": True}
 
     @app.post("/api/stop")
@@ -188,15 +253,15 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
 
     @app.post("/api/undo")
     def undo():
-        import hands
-        hands.STATE["folder"] = core.config()["folder_path"]
+        import tools
+        tools.STATE["folder"] = core.config()["folder_path"]
         return {"moves": move.undo_all()}
 
     @app.get("/gallery")
     def gallery():
         p = core.config()["folder_path"] / "gallery.html"
         if not p.exists():
-            return HTMLResponse("<p style='font:18px sans-serif;padding:40px'>아직 갤러리가 없습니다. 도슨트를 실행해 보세요.</p>")
+            return HTMLResponse("<p style='font:18px sans-serif;padding:40px'>아직 갤러리가 없습니다. 위쪽 [팀 실행]을 눌러 보세요.</p>")
         return FileResponse(p)
 
     @app.get("/api/events")

@@ -17,9 +17,9 @@ sys.path.insert(0, str(REPO))
 import aisuite as ai  # noqa: E402
 from openai.types.chat import ChatCompletion  # noqa: E402
 
-import hands  # noqa: E402
+import tools  # noqa: E402
 from engine import core  # noqa: E402
-from hands import move  # noqa: E402
+from tools import move  # noqa: E402
 
 
 def reply(text=None, calls=()):
@@ -40,12 +40,13 @@ def kit(tmp_path, monkeypatch):
     folder = tmp_path / "copy"
     (root / "config.yaml").write_text((REPO / "config.yaml").read_text(encoding="utf-8")
                                       .replace("~/agent-workshop/copy", folder.as_posix()), encoding="utf-8")
+    shutil.copy(REPO / "mcp.json", root / "mcp.json")
     monkeypatch.setattr(core, "ROOT", root)
     for k in core.KEYS:
         monkeypatch.delenv(k, raising=False)
     shutil.copytree(REPO / "sample_downloads", folder)
-    hands.STATE["folder"] = folder
-    hands.STATE["ids"] = {}
+    tools.STATE["folder"] = folder
+    tools.STATE["ids"] = {}
     return root, folder
 
 
@@ -73,24 +74,35 @@ def kinds(evs):
     return [e["event_type"] for e in evs]
 
 
-# ───────── 손 ─────────
+# ───────── 도구 ─────────
 
 def test_find_handles_ids_nfd_typos_and_blocks_outside(kit):
     _, folder = kit
     (folder / unicodedata.normalize("NFD", "졸업 전시 포스터.png")).write_bytes(b"x")
-    out = hands.HANDS["list_files"]["func"]()
+    out = tools.TOOLS["list_files"]["func"]()
     assert "[1]" in out and "졸업 전시 포스터.png" in out           # 모델에는 항상 완성형(NFC) 이름
-    assert hands.find("졸업 전시 포스터.png").exists()              # NFD로 저장된 파일도 찾음
-    assert hands.find("1").exists()                                  # 번호로도 찾음
-    assert hands.find("졸업 전시 포스타.png").exists()               # 작은 오타도 찾음
+    assert tools.find("졸업 전시 포스터.png").exists()              # NFD로 저장된 파일도 찾음
+    assert tools.find("1").exists()                                  # 번호로도 찾음
+    assert tools.find("졸업 전시 포스타.png").exists()               # 작은 오타도 찾음
     for bad in ("../x", "/etc/passwd", "~/x", "../../copy/todo.md"):
         with pytest.raises(PermissionError):
-            hands.find(bad)
+            tools.find(bad)
+
+
+def test_write_file_markdown_only_inside_copy(kit):
+    _, folder = kit
+    tools.load_all()
+    out = tools.TOOLS["write_file"]["func"](path="리서치/노트.md", content="# 안녕\n")
+    assert out.startswith("저장했습니다")
+    assert (folder / "리서치/노트.md").read_text(encoding="utf-8").startswith("# 안녕")
+    assert tools.TOOLS["write_file"]["func"](path="리서치/노트.md", content="# 또").startswith("error:")
+    for bad in ("../x.md", "a.txt", "/tmp/x.md", "리서치/비밀.env"):
+        assert tools.TOOLS["write_file"]["func"](path=bad, content="x").startswith("error:")
 
 
 def test_plan_review_edit_reject_move_undo(kit):
     _, folder = kit
-    hands.HANDS["list_files"]["func"]()
+    tools.TOOLS["list_files"]["func"]()
     msg = move.propose_plan([{"src": "todo.md", "dst": "문서/"}, {"src": "IMG_2031.jpg", "dst": "사진/"},
                              {"src": "cat_meme.gif", "dst": "사진/"}])
     pid = msg.split("plan_id=")[1].split(",")[0]
@@ -114,17 +126,17 @@ def test_plan_review_edit_reject_move_undo(kit):
 
 # ───────── 루프 (aisuite Runner + 우리 손잡이) ─────────
 
-def test_L1_chat(kit, monkeypatch):
+def test_chat_without_tools(kit, monkeypatch):
     eng = engine_with([reply("안녕하세요!")], monkeypatch)
     assert eng.run("안녕") == "안녕하세요!"
     ev = kinds(eng.events())
     assert "model.send" in ev and "model.response" in ev and "tool.started" not in ev
 
 
-def test_L3_tool_error_does_not_stop_loop_and_knobs(kit, monkeypatch):
+def test_tool_error_does_not_stop_loop_and_knobs(kit, monkeypatch):
     root, _ = kit
-    core.set_yaml(root / "config.yaml", "level", "L3")
-    core.set_yaml(root / "agents/detective/agent.yaml", "max_turns", 4)
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "tools", ["peek_file", "list_files", "get_time"])
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "max_turns", 4)
     eng = engine_with([reply(calls=[("peek_file", {"path": "없는파일.txt"})]),     # 손 오류 → 글로
                        reply(calls=[("list_files", {})]),
                        reply(calls=[("list_files", {})]),                            # 같은 호출 → 막힘
@@ -139,8 +151,6 @@ def test_L3_tool_error_does_not_stop_loop_and_knobs(kit, monkeypatch):
 
 
 def test_says_but_no_action_warning(kit, monkeypatch):
-    root, _ = kit
-    core.set_yaml(root / "config.yaml", "level", "L3")
     eng = engine_with([reply("링크를 읽어 봤는데 접속이 안 돼요.")], monkeypatch)
     eng.run("이 링크 읽어 줘: https://nope.example")
     assert "warn.says_but_no_action" in kinds(eng.events())
@@ -154,10 +164,11 @@ def test_retry_is_visible(kit, monkeypatch):
     assert w and w[0]["data"]["code"] == "429"
 
 
-def test_curator_needs_human_review(kit, monkeypatch):
+def test_move_needs_human_review(kit, monkeypatch):
     root, folder = kit
-    core.set_yaml(root / "config.yaml", "level", "L3")
-    core.set_yaml(root / "config.yaml", "agent", "curator")
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "tools", ["propose_plan", "move_files", "list_files"])
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "skills", ["curator"])
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "ask_before", ["move_files"])
 
     def plan(_=None):
         return reply(calls=[("propose_plan", {"moves": [{"src": "todo.md", "dst": "문서/"}]})])
@@ -193,13 +204,58 @@ def test_dashboard_toggle_writes_file_and_folder_copy(kit, monkeypatch):
     monkeypatch.setattr(server, "SAMPLE", root / "sample_downloads")
     c = TestClient(server.create_app(core.Engine()))
     s = c.get("/api/state").json()
-    assert s["hands"]["web_search"]["ok"] is False and "TAVILY" in s["hands"]["web_search"]["why"]
-    c.post("/api/set", json={"target": "agent:detective", "key": "max_turns", "value": 3})
-    text = (root / "agents/detective/agent.yaml").read_text(encoding="utf-8")
-    assert "max_turns: 3" in text and "# ── 루프 손잡이 ──" in text          # 주석 유지
+    assert s["agent"] == "my-agent"
+    assert s["tools"]["web_search"]["ok"] is False and "mcp.json" in s["tools"]["web_search"]["why"]
+    assert {x["name"] for x in s["skills"]} >= {"curator", "research-note"}
+    c.post("/api/set", json={"target": "agent:my-agent", "key": "max_turns", "value": 3})
+    text = (root / "agents/my-agent/agent.yaml").read_text(encoding="utf-8")
+    assert "max_turns: 3" in text and "# ── 루프 조절 ──" in text          # 주석 유지
     pv = c.get("/api/folder/preview?kind=sample").json()["items"]
     assert any(i["skip"] for i in pv if i["name"].startswith("통장"))         # 민감 파일은 기본 제외
     keep = [i["name"] for i in pv if not i["skip"]]
     r = c.post("/api/folder/copy", json={"kind": "sample", "include": keep}).json()
     assert r["copied"] == len(keep) and not (folder / "통장사본_스캔.jpg").exists()
-    assert c.post("/api/set", json={"key": "level", "value": "L2"}, headers={"origin": "https://evil.com"}).status_code == 403
+    assert c.post("/api/set", json={"target": "config", "key": "agent", "value": "docent"},
+                  headers={"origin": "https://evil.com"}).status_code == 403
+    turned = c.post("/api/mcp", json={"name": "tavily", "enabled": True, "agent": "my-agent"})
+    assert turned.status_code == 200
+    saved = json.loads((root / "mcp.json").read_text(encoding="utf-8"))
+    assert saved["tavily"]["enabled"] is True
+    assert "web_search" in (root / "agents/my-agent/agent.yaml").read_text(encoding="utf-8")
+
+
+def test_write_file_approval_shows_preview(kit, monkeypatch):
+    root, folder = kit
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "tools", ["write_file"])
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "ask_before", ["write_file"])
+    content = "# 연구 노트\n\n한 줄 요약입니다."
+
+    def call():
+        return reply(calls=[("write_file", {"path": "리서치/노트.md", "content": content})])
+
+    eng = engine_with([call(), reply("노트를 저장했어요")], monkeypatch)
+
+    def human():
+        while not eng.pending:
+            time.sleep(0.02)
+        aid, box = next(iter(eng.pending.items()))
+        assert "연구 노트" in box["view"]["preview"]["content"]
+        assert box["view"]["preview"]["path"] == "리서치/노트.md"
+        eng.answer(aid, {"action": "approve"})
+    threading.Thread(target=human, daemon=True).start()
+    assert eng.run("노트 써 줘") == "노트를 저장했어요"
+    assert (folder / "리서치/노트.md").read_text(encoding="utf-8") == content
+    assert "approval.requested" in kinds(eng.events())
+
+
+def test_team_run_shows_handoff(kit, monkeypatch):
+    eng = engine_with([reply("디자인과 학생의 폴더로 보여요."), reply("갤러리 초안을 적었어요.")], monkeypatch)
+    out = eng.run("정리해 줘", mode="team")
+    evs = eng.events()
+    ev = kinds(evs)
+    assert ev.count("agent.start") == 2
+    assert "team.start" in ev and "agent.handoff" in ev and "team.step" in ev
+    hand = next(e for e in evs if e["event_type"] == "agent.handoff")
+    assert "디자인과" in hand["data"]["passed"]
+    assert "디자인과" in out and "갤러리" in out
+    assert len([e for e in evs if e["event_type"] == "chat.reply"]) == 2

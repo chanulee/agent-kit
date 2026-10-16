@@ -1,5 +1,7 @@
 title: "🎧 도슨트"
-hands: [list_files, met_search, web_search, web_read, write_gallery]
+# 준비된 에이전트입니다. 팀 실행에서 갤러리를 만듭니다. 평소 대화는 나의 에이전트가 합니다.
+tools: [list_files, met_search, web_search, web_read, write_gallery]
+skills: []
 
 max_turns: 8
 limits: {met_search: 3, web: 4}

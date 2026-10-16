@@ -1,43 +1,46 @@
-"""손(도구) 모음. 손 하나 = 파이썬 함수 하나. 파일 하나에 비슷한 손을 모읍니다.
+"""도구 모음. 도구 하나 = 파이썬 함수 하나. 파일 하나에 비슷한 도구를 모읍니다.
 
-새 손 만들기 (예: hands/weather.py):
+새 도구 만들기 (예: tools/weather.py):
 
-    from hands import hand
+    from tools import tool
 
-    @hand("🌦️")
+    @tool("🌦️", group="기타")
     def get_weather(city: str) -> str:
-        \"\"\"Get today's weather for a city.\"\"\"     # ← LLM이 읽는 설명 (영어 한 줄이 가장 잘 통함)
+        \"\"\"Get today's weather for a city.\"\"\"     # ← 모델이 읽는 설명 (영어 한 줄)
         return "맑음, 21도"
 
-그다음 agents/<에이전트>/agent.yaml 의 hands: 목록에 get_weather 를 넣으면 끝입니다.
-규칙: 손은 실패해도 예외를 던지지 말고 "error: 이유" 글을 돌려주세요. (던져도 엔진이 잡아 줍니다)
-파일을 지우는 손은 만들지 않습니다.
+그다음 agents/my-agent/agent.yaml 의 tools: 목록에 get_weather 를 넣으면 끝입니다.
+규칙: 도구는 실패해도 예외를 던지지 말고 "error: 이유" 글을 돌려주세요. (던져도 엔진이 잡아 줍니다)
+파일을 지우는 도구는 만들지 않습니다.
 """
 import importlib
 import pkgutil
 import unicodedata
 from pathlib import Path
 
-HANDS: dict = {}      # 이름 → {"func", "icon", "needs"}
+TOOLS: dict = {}      # 이름 → {"func", "icon", "needs", "group", "module"}
 STATE = {"folder": None, "ids": {}}  # 사본 폴더(엔진이 넣어 줌), list_files가 붙인 번호표
 
 
-def hand(icon="🔧", needs=None):
-    """함수를 손으로 등록합니다. needs="TAVILY_API_KEY" 처럼 필요한 키를 적으면 키가 없을 때 자동으로 꺼집니다."""
+def tool(icon="🔧", needs=None, group="기타"):
+    """함수를 도구로 등록합니다. needs="TAVILY_API_KEY" 처럼 필요한 키를 적으면 키가 없을 때 자동으로 꺼집니다."""
     def deco(func):
-        HANDS[func.__name__] = {"func": func, "icon": icon, "needs": needs, "module": func.__module__.split(".")[-1]}
+        TOOLS[func.__name__] = {
+            "func": func, "icon": icon, "needs": needs, "group": group,
+            "module": func.__module__.split(".")[-1],
+        }
         return func
     return deco
 
 
 def load_all():
-    """hands/ 폴더의 모든 파일을 읽어 손을 등록합니다. 파일 하나가 깨져도 나머지는 동작합니다."""
+    """tools/ 폴더의 모든 파일을 읽어 도구를 등록합니다. 파일 하나가 깨져도 나머지는 동작합니다."""
     errors = {}
     for m in pkgutil.iter_modules([str(Path(__file__).parent)]):
         if m.name.startswith("_"):
             continue
         try:
-            importlib.reload(importlib.import_module(f"hands.{m.name}"))
+            importlib.reload(importlib.import_module(f"tools.{m.name}"))
         except Exception as e:  # noqa: BLE001
             errors[m.name] = f"{type(e).__name__}: {e}"
     return errors
