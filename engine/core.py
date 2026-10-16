@@ -229,6 +229,48 @@ class _KoreanJson:
 
 _ai_tools.json = _KoreanJson()
 
+# aisuite는 모델이 목록에 없는 도구(예: 아직 안 켠 move_files)를 부르거나, 인자가 깨졌거나 틀리면
+# 예외를 던져서 실행 전체가 멈춥니다. 그 호출 하나만 "실행 안 함 + 이유"로 돌려주고 루프는 계속 돌게 합니다.
+_orig_prepare = _ai_tools.Tools._prepare_tool_call
+
+
+def _prepare_or_explain(self, tool_call, tool_policy, tool_policy_context):
+    try:
+        return _orig_prepare(self, tool_call, tool_policy, tool_policy_context)
+    except ValueError as e:  # 등록 안 된 도구, 깨진 JSON(JSONDecodeError도 ValueError), 인자 검사 실패
+        fn = tool_call["function"] if isinstance(tool_call, dict) else tool_call.function
+        name = fn["name"] if isinstance(fn, dict) else fn.name
+        call_id = tool_call["id"] if isinstance(tool_call, dict) else tool_call.id
+        if name not in self._tools:
+            why = (f"'{name}' 도구는 지금 꺼져 있어서 실행하지 않았습니다. 부품 창에서 켜야 쓸 수 있습니다. "
+                   "그 도구 없이 할 수 있는 만큼만 하고, 했다고 말하지 마세요.")
+        else:
+            why = f"'{name}' 도구에 준 값이 맞지 않아 실행하지 않았습니다: {str(e)[:200]}. 설명을 다시 보고 고쳐서 부르세요."
+        self._emit_tool_trace_event("tool.denied", {"tool_name": name, "tool_call_id": call_id, "reason": why})
+        return {"tool_name": name, "tool_call_id": call_id, "tool_func": None, "args": {},
+                "tool_metadata_dict": None, "denied": True, "result": {"error": why}}
+
+
+_ai_tools.Tools._prepare_tool_call = _prepare_or_explain
+
+
+def team_tidy_instruction(agent: dict, status: dict | None = None) -> str:
+    """팀 1단계 지시문. "도구가 있으면 …" 같은 조건문 대신, 지금 켜진 도구에 맞는 한 가지 지시만 줍니다.
+    (실제 GLM 측정: 조건문 지시 → 9번 중 0번 옮김, 켜진 도구에 맞춘 지시 → 6번 중 6번 옮김)"""
+    status = status if status is not None else tool_status()
+    on = {n for n in agent.get("tools", []) if status.get(n, {}).get("ok")}
+    rules = "스킬 규칙대로 " if agent.get("skills") else ""
+    head = "\n\n(팀 1단계 · 폴더 정리) "
+    if {"list_files", "propose_plan", "move_files"} <= on:
+        return head + (f"list_files로 폴더를 보고, {rules}propose_plan으로 계획을 세운 다음, 바로 move_files를 부르세요. "
+                       "채팅으로 허락을 묻지 마세요. 승인은 화면 카드가 받습니다. 계획만 세우고 끝내지 마세요.")
+    if {"list_files", "propose_plan"} <= on:
+        return head + (f"list_files로 폴더를 보고, {rules}propose_plan으로 계획만 세우세요. "
+                       "옮기는 도구(move_files)는 꺼져 있으니 옮겼다고 말하지 마세요.")
+    if "list_files" in on:
+        return head + "list_files로 폴더를 보고 어떤 파일들이 있는지 짧게 정리하세요. 계획하거나 옮기는 도구는 꺼져 있습니다."
+    return head + "폴더를 볼 수 있는 도구가 꺼져 있습니다. 폴더 내용은 모른다고 말하세요. 지어내지 마세요."
+
 
 # ───────────────────────── 한 판 실행 ─────────────────────────
 
@@ -452,11 +494,7 @@ class Engine:
         self.bus.emit("team.start", {"steps": steps})
         folder = cfg["folder_path"]
         before = [p.relative_to(folder).as_posix() for p in folder.iterdir() if p.is_file()] if folder.is_dir() else []
-        tidy = (text + "\n\n(팀 1단계 · 폴더 정리) 폴더를 살펴보세요. "
-                "스킬이 켜져 있으면 그 규칙대로 정리 계획을 세우세요. "
-                "파일을 옮기는 도구가 있으면 화면 승인을 받은 뒤 옮기세요. "
-                "계획 도구만 있으면 계획은 세우고 옮기지는 마세요. "
-                "볼 수 있는 도구가 없으면 모른다고 말하세요.")
+        tidy = text + team_tidy_instruction(load_agent(student))
         prev, answers = "", []
         for i, step in enumerate(steps):
             if self.cancel.is_set():
