@@ -369,3 +369,17 @@ def test_team_step1_uses_plain_instruction_and_moves(kit, monkeypatch):
     assert (folder / "문서/todo.md").exists()
     unmoved = next(e for e in eng.events() if e["event_type"] == "check.unmoved")
     assert "todo.md" not in unmoved["data"]["files"]
+
+
+def test_skill_index_names_the_action_tools_it_covers(kit):
+    """스킬 목록에 그 스킬이 다루는 '하는' 도구를 적어서, 그 도구를 쓰기 전에 스킬을 읽게 합니다.
+    한글 조사가 붙은 도구 이름(propose_plan으로)도 찾고, 읽기만 하는 도구(list_files, web_search)는 적지 않습니다."""
+    core.tool_status()
+    idx = core.skill_index(["curator", "research-note"])
+    assert "curator: 정리 스킬" in idx and "propose_plan · move_files 도구를 쓰기 전에" in idx
+    assert "write_file 도구를 쓰기 전에" in idx
+    assert "list_files" not in idx and "web_search" not in idx
+    root, _ = kit
+    (root / "skills/plain").mkdir()
+    (root / "skills/plain/SKILL.md").write_text("# 말투 스킬\n도구 이름이 없는 스킬", encoding="utf-8")
+    assert "- plain: 말투 스킬" in core.skill_index(["plain"]) and "쓰기 전에" not in core.skill_index(["plain"])
