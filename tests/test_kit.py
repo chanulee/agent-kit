@@ -312,3 +312,60 @@ def test_step4_wrong_plan_id_and_reject_then_approve(kit, monkeypatch):
     eng.run("이번엔 옮겨 줘")
     assert (folder / "문서/todo.md").exists()                                    # 같은 계획으로 옮김
     assert len(cards) == 2 and cards[0] == cards[1]                              # 새 계획 없이 같은 카드
+
+
+def test_team_instruction_matches_tools_that_are_on(kit):
+    ok = {n: {"ok": True} for n in ("list_files", "propose_plan", "move_files")}
+    full = core.team_tidy_instruction({"tools": ["list_files", "propose_plan", "move_files"], "skills": ["curator"]}, ok)
+    assert "바로 move_files를 부르세요" in full and "스킬 규칙대로" in full and "있으면" not in full   # 조건문 없음
+    plan_only = core.team_tidy_instruction({"tools": ["list_files", "propose_plan"], "skills": []}, ok)
+    assert "계획만 세우세요" in plan_only and "바로 move_files" not in plan_only
+    look = core.team_tidy_instruction({"tools": ["list_files"], "skills": []}, ok)
+    assert "꺼져 있습니다" in look
+    none = core.team_tidy_instruction({"tools": [], "skills": []}, ok)
+    assert "모른다고" in none
+    off = core.team_tidy_instruction({"tools": ["list_files", "propose_plan", "move_files"], "skills": []},
+                                     {**ok, "move_files": {"ok": False}})               # 켰지만 못 쓰는 도구
+    assert "계획만 세우세요" in off
+
+
+def test_calling_a_tool_that_is_off_does_not_crash(kit, monkeypatch):
+    """스킬이 move_files를 부르라고 해도, 아직 안 켰으면 실행만 안 하고 이유를 돌려줍니다(전에는 실행 전체가 멈춤)."""
+    root, folder = kit
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "tools", ["list_files"])
+    eng = engine_with([reply(calls=[("move_files", {})]),                    # 꺼진 도구
+                       reply(calls=[("list_files", {"nope": "x"})]),         # 틀린 인자
+                       reply("계획만 보여 드릴게요")], monkeypatch)
+    assert eng.run("옮겨 줘") == "계획만 보여 드릴게요"
+    evs = eng.events()
+    denied = [e["data"]["reason"] for e in evs if e["event_type"] == "tool.denied"]
+    assert any("꺼져 있어서" in r for r in denied)
+    assert "run.failed" not in kinds(evs) and "error.card" not in kinds(evs)
+
+
+def test_team_step1_uses_plain_instruction_and_moves(kit, monkeypatch):
+    root, folder = kit
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "tools", ["list_files", "propose_plan", "move_files"])
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "ask_before", ["move_files"])
+    core.set_yaml(root / "agents/docent/agent.yaml", "tools", [])
+    sent = []
+    eng = engine_with([reply(calls=[("list_files", {})]),
+                       reply(calls=[("propose_plan", {"moves": [{"src": "todo.md", "dst": "문서/"}]})]),
+                       reply(calls=[("move_files", {})]),
+                       reply("정리했어요"),
+                       reply("갤러리는 도구가 없어 못 만들어요")], monkeypatch)
+    real = core._orig_create
+    monkeypatch.setattr(core, "_orig_create",
+                        lambda self, model, messages, **kw: sent.append(messages) or real(self, model, messages, **kw))
+
+    def human():
+        while not eng.pending:
+            time.sleep(0.02)
+        eng.answer(next(iter(eng.pending)), {"action": "submit", "items": {}})
+    threading.Thread(target=human, daemon=True).start()
+    eng.run("전시회 하자!", mode="team")
+    first_user = next(m for m in sent[0] if isinstance(m, dict) and m.get("role") == "user")["content"]
+    assert "전시회 하자!" in first_user and "바로 move_files를 부르세요" in first_user
+    assert (folder / "문서/todo.md").exists()
+    unmoved = next(e for e in eng.events() if e["event_type"] == "check.unmoved")
+    assert "todo.md" not in unmoved["data"]["files"]
