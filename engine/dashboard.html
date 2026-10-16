@@ -307,6 +307,7 @@ function onEvent(e) {
       break; }
     case "tool.denied": step(`✋ <b>${esc(d.tool_name)}</b> 실행 안 함 — ${esc(d.reason || "")}`, "warn"); break;
     case "loop.repeat_blocked": step(`♻️ 같은 호출(${esc(d.tool)}) → 다시 실행하지 않음 <span class="muted">(루프 조절: 같은 호출 막기)</span>`, "warn"); break;
+    case "loop.plan_id_fixed": step(`🧾 모델이 계획 번호를 잘못 기억함(${esc(d.given)}) → 지금 계획(${esc(d.used)})을 씀`, "warn"); break;
     case "loop.limit": step(`⛔ ${esc(d.tool)} 한도 ${d.limit}번 도달 <span class="muted">(루프 조절)</span>`, "warn"); break;
     case "retry.waiting": note(`⏳ 서버가 바쁨(${d.code}) → ${d.wait_s}초 기다렸다 다시 (${d.attempt}/${d.max})`, "warn");
       status(`⏳ ${d.wait_s}초 기다리는 중 (재시도 ${d.attempt}/${d.max}) — 고장 아님, 서버 한도`, "wait"); break;

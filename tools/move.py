@@ -80,17 +80,17 @@ def propose_plan(moves: list[Move]) -> str:
 
 
 @tool("📦", group="정리")
-def move_files(plan_id: str) -> str:
-    """Move the files in the reviewed plan. Only items the user approved are moved, all at once. Never deletes.
+def move_files(plan_id: str = "") -> str:
+    """Move the files in the current plan (the one saved by propose_plan). Only items the user approved are moved,
+    all at once. Never deletes. If the user says "move as planned", just call this; no need to plan again.
 
     Args:
-        plan_id: plan_id from propose_plan
+        plan_id: optional. plan_id from propose_plan; if missing or wrong, the current plan is used
     """
-    plan = _load("plan.json", {})
-    if plan.get("plan_id") != plan_id:
-        return "error: 그 plan_id의 계획이 없습니다. propose_plan을 먼저 부르세요."
-    if plan.get("status") != "reviewing":
-        return "error: 이미 끝난 계획입니다. 새로 하려면 propose_plan을 다시 부르세요."
+    plan = current_plan()
+    if not plan:
+        return "error: 심사 중인 계획이 없습니다. propose_plan으로 계획을 먼저 세우세요."
+    plan_id = plan["plan_id"]  # 계획 파일은 하나뿐입니다. 번호를 잃어버려도 지금 계획을 씁니다.
     undo = _load("undo.json", {"moves": []})
     moved, skipped = [], []
     for it in plan["items"]:
@@ -128,20 +128,33 @@ def move_files(plan_id: str) -> str:
 
 # ---------------- 엔진이 쓰는 함수 (모델에게 보이는 도구는 아님) ----------------
 
-def review_card(plan_id: str) -> dict | None:
+def current_plan() -> dict | None:
+    """지금 심사 중인 계획. 계획 파일(plan.json)은 하나뿐이라 번호 없이도 찾을 수 있습니다."""
     plan = _load("plan.json", {})
-    return plan if plan.get("plan_id") == plan_id and plan.get("status") == "reviewing" else None
+    return plan if plan.get("status") == "reviewing" else None
+
+
+def review_card(plan_id: str = "") -> dict | None:
+    """모델이 준 plan_id가 틀리거나 없어도 지금 심사 중인 계획을 돌려줍니다.
+    (대화 기록에는 최종 답만 남아서, 앞 질문에서 받은 plan_id를 모델이 잊어버리기 때문)"""
+    return current_plan()
 
 
 def apply_review(plan_id: str, decision: dict) -> tuple[bool, str]:
     """사람의 심사 결과를 계획에 적습니다. (실행해도 되나, 모델에게 줄 말)"""
-    plan = review_card(plan_id)
+    plan = current_plan()
     if not plan:
         return False, "계획을 찾을 수 없습니다. propose_plan을 다시 부르세요."
     if decision.get("action") == "deny":
-        plan["status"] = "cancelled"
+        # 거절 = "이번에는 옮기지 않음". 계획은 그대로 남겨서, 다음에 다시 move_files를 부르면 같은 카드가 뜹니다.
+        plan.setdefault("notes", [])
+        c = (decision.get("comment") or "").strip()
+        if c:
+            plan["notes"].append(c)
         _save("plan.json", plan)
-        return False, "사용자가 계획 전체를 취소했습니다. 무엇을 바꾸고 싶은지 물어보세요."
+        return False, ("사용자가 이번에는 옮기지 않기로 했습니다. 아무 파일도 옮기지 않았습니다. 계획은 그대로 남아 있습니다"
+                       + (f". 사용자의 말: \"{c}\"" if c else "") + ". 무엇을 바꾸고 싶은지 물어보세요. "
+                       "사용자가 다시 옮기라고 하면 계획을 새로 세우지 말고 move_files를 바로 부르세요.")
     choices = {str(k): v for k, v in (decision.get("items") or {}).items()}
     edits, comment = [], (decision.get("comment") or "").strip()
     for it in plan["items"]:
