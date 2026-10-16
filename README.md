@@ -5,6 +5,26 @@
 - 1~2시간차: 모두 같은 에이전트 **「내 다운로드 폴더 전시회」**를 함께 겪습니다. 코딩 수업이 아니라 체험입니다.
 - 3~4시간차: 각자 자기 에이전트를 만듭니다. 부품 바꾸기, 다이어그램 + 부분 시제품, 오즈의 마법사 중 하나를 고릅니다.
 
+## 바로 실행하기 (학생용)
+
+1. 이 저장소를 내려받습니다 (Code → Download ZIP, 또는 `git clone`).
+2. [uv](https://docs.astral.sh/uv/)를 설치합니다 (한 번만).
+   - Mac: 터미널에 `curl -LsSf https://astral.sh/uv/install.sh | sh`
+   - Windows: PowerShell에 `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+3. `.env.example`을 복사해 이름을 `.env`로 바꾸고 키 2개를 붙여 넣습니다 (`ZAI_API_KEY`, `TAVILY_API_KEY`).
+4. 키트 폴더에서 `uv run app.py` → 브라우저에 대시보드가 열립니다.
+5. 위쪽 [📁 폴더 고르기] → 샘플 폴더 또는 내 폴더 → 사본 만들기. 그다음 왼쪽 아래에 말을 겁니다.
+
+| 화면 | 무엇 |
+|---|---|
+| 💬 대화 | 에이전트의 **말**. 승인 카드와 오류 카드(단계 · 무슨 일 · 할 일 · 다시 시도)도 여기에 |
+| 🔁 루프 | 에이전트의 **행동**. 턴마다 🧠 생각 → 🔧 손 → 결과. aisuite가 내보내는 이벤트 그대로 |
+| 🧩 부품 | 손(도구) 켜고 끄기, 루프 손잡이(턴 한도·웹 한도·같은 호출 막기·재시도·기억), 승인할 손. 누르면 `agents/<이름>/agent.yaml` 한 줄이 바뀜 |
+
+고치는 곳: `agents/<이름>/persona.md`(말투), `agents/<이름>/agent.yaml`(손·루프 손잡이), `skills/curator/SKILL.md`(정리 규칙), `hands/*.py`(손 하나 = 함수 하나), `hands/gallery_template.html`(갤러리 모양). 엔진(`engine/`)은 고치지 않습니다.
+
+시험: `uv run pytest` (키 없이 9개). 실행 기록: `runs/<시간>/trace.jsonl`.
+
 ## 쉬운 말로 먼저
 
 | 말 | 한 줄 뜻 |

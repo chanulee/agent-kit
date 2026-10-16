@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- 갤러리 모양. 이 파일만 바꾸면 전시회 모양이 바뀝니다 (예: Cursor에게 "어두운 미술관 벽 느낌으로").
+     {{이름}} 자리에는 데이터가 들어갑니다. 지우지 마세요. -->
+<html lang="ko"><meta charset="utf-8"><title>내 다운로드 폴더 전시회</title>
+<style>
+  body { font-family: -apple-system, "Pretendard", "Malgun Gothic", sans-serif; margin: 0; background: #f4f1ea; color: #222; }
+  header { padding: 48px 8vw 16px; } h1 { font-size: 40px; margin: 0; } .sub { color: #777; }
+  main { display: grid; grid-template-columns: minmax(260px, 1fr) 1fr; gap: 40px; padding: 24px 8vw 64px; }
+  figure { margin: 0; background: #fff; padding: 20px; box-shadow: 0 10px 30px #0002; } img { width: 100%; display: block; }
+  figcaption { margin-top: 12px; font-size: 14px; color: #555; } .card { background: #fff; padding: 24px; line-height: 1.7; }
+  ul { columns: 2; font-size: 13px; color: #555; } ul.src { columns: 1; font-size: 12px; word-break: break-all; } a { color: #8a5a00; }
+  @media (max-width: 700px) { main { grid-template-columns: 1fr; } }
+</style>
+<header><h1>내 다운로드 폴더 전시회</h1><p class="sub">도슨트 에이전트가 고른 오늘의 작품</p></header>
+<main>
+  <figure><img src="{{image}}" alt="{{title}}"><figcaption><b>{{title}}</b><br>{{artist}} · {{date}}<br><a href="{{met_url}}">메트로폴리탄 미술관에서 보기</a></figcaption></figure>
+  <section>
+    <div class="card"><h2>도슨트 해설</h2><p class="sub">고른 이유: {{reason}}</p><p>{{commentary}}</p>
+      <h3>참고한 페이지</h3><ul class="src">{{sources}}</ul></div>
+    <h3>이번 전시의 소장품 (정리된 파일)</h3><ul>{{files}}</ul>
+  </section>
+</main>
+</html>

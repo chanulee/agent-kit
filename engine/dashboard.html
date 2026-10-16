@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>에이전트 대시보드</title>
+<style>
+  :root { --bg:#f5f4f0; --card:#fff; --ink:#1d1c1a; --muted:#7a766d; --line:#e3e0d8; --blue:#3b5bdb; --green:#2b8a3e;
+          --red:#c92a2a; --yellow:#fff3bf; --orange:#e8590c; --fs:14px; }
+  * { box-sizing:border-box; } body { margin:0; background:var(--bg); color:var(--ink); font:var(--fs)/1.5 -apple-system,"Pretendard","Malgun Gothic",sans-serif; height:100vh; display:flex; flex-direction:column; }
+  body.big { --fs:18px; }
+  button,input,select,textarea { font:inherit; } button { border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 10px; cursor:pointer; }
+  button.primary { background:var(--blue); color:#fff; border-color:var(--blue); } button:disabled { opacity:.5; }
+  .muted { color:var(--muted); } .hidden { display:none!important; }
+  /* 상태바 */
+  #bar { background:#fff; border-bottom:1px solid var(--line); padding:8px 14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  #bar .chip { padding:2px 9px; border-radius:999px; background:#efede8; font-size:.9em; }
+  .seg button { border-radius:0; margin-left:-1px; } .seg button:first-child { border-radius:8px 0 0 8px; } .seg button:last-child { border-radius:0 8px 8px 0; }
+  .seg button.on { background:var(--blue); color:#fff; }
+  #now { flex-basis:100%; font-weight:700; padding:6px 10px; border-radius:8px; background:#eef2ff; }
+  #now.wait { background:var(--yellow); } #now.err { background:#fdecec; color:var(--red); } #now.done { background:#e6f6ea; }
+  /* 본문 */
+  main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(300px,1fr) minmax(340px,1.2fr) 300px; gap:10px; padding:10px; }
+  main.noparts { grid-template-columns:minmax(300px,1fr) minmax(340px,1.4fr); } main.noparts #parts { display:none; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px; display:flex; flex-direction:column; min-height:0; }
+  section h3 { margin:0; padding:8px 12px; border-bottom:1px solid var(--line); font-size:1em; display:flex; justify-content:space-between; align-items:center; }
+  .scroll { overflow:auto; padding:10px; flex:1; }
+  /* 대화 */
+  .msg { padding:8px 11px; border-radius:12px; margin:6px 0; white-space:pre-wrap; word-break:break-word; max-width:92%; }
+  .me { background:var(--blue); color:#fff; margin-left:auto; } .ai { background:#f1efea; }
+  .card { border:2px solid var(--orange); background:#fff8f0; border-radius:10px; padding:8px 10px; margin:6px 0; }
+  .card.err { border-color:var(--red); background:#fdecec; } .card.ok { border-color:var(--line); background:#fafaf8; }
+  .card table { width:100%; border-collapse:collapse; font-size:.92em; } .card td,.card th { border-bottom:1px solid var(--line); padding:3px 4px; text-align:left; vertical-align:top; }
+  .card tr.changed td { background:var(--yellow); } .card tr.rej td { text-decoration:line-through; color:var(--muted); }
+  .pick button { padding:1px 6px; } .pick button.on { outline:2px solid var(--blue); }
+  #composer { display:flex; gap:6px; padding:8px; border-top:1px solid var(--line); } #composer textarea { flex:1; resize:none; border:1px solid var(--line); border-radius:8px; padding:6px; }
+  /* 루프 타임라인 */
+  .agent { margin:10px 0 4px; font-weight:800; } .agent small { font-weight:400; color:var(--muted); }
+  .turn { border:1px solid var(--line); border-radius:10px; padding:6px 9px; margin:6px 0; }
+  .turn .h { display:flex; justify-content:space-between; font-weight:700; } .turn .h span:last-child { font-weight:400; color:var(--muted); font-size:.9em; }
+  .step { margin:3px 0 0 6px; } .step.bad { color:var(--red); } .step.warn { color:var(--orange); }
+  .note { margin:6px 0; padding:4px 8px; border-left:4px solid var(--line); font-size:.92em; }
+  .note.warn { border-color:var(--orange); background:#fff4e6; } .note.bad { border-color:var(--red); background:#fdecec; } .note.good { border-color:var(--green); }
+  details summary { cursor:pointer; color:var(--muted); font-size:.9em; } pre { white-space:pre-wrap; word-break:break-word; background:#f8f7f4; padding:6px; border-radius:6px; font-size:.85em; max-height:220px; overflow:auto; margin:3px 0; }
+  /* 부품 */
+  #parts label { display:flex; gap:6px; align-items:center; padding:2px 0; } #parts .why { color:var(--red); font-size:.8em; }
+  #parts h4 { margin:12px 0 4px; } #parts input[type=number] { width:60px; }
+  #log { max-height:30vh; } #logwrap { margin:0 10px 10px; }
+  dialog { border:0; border-radius:14px; width:min(680px,94vw); box-shadow:0 20px 60px #0004; } dialog pre { max-height:60vh; }
+  .files { max-height:40vh; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:4px 8px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <b>🎟️ 에이전트 대시보드</b>
+  <span class="seg" id="levels"></span>
+  <span id="chips"></span>
+  <button id="btn-folder">📁 폴더 고르기</button>
+  <button id="btn-undo">↩️ 되돌리기</button>
+  <a href="/gallery" target="_blank"><button>🖼️ 갤러리</button></a>
+  <span style="flex:1"></span>
+  <button id="btn-parts">🧩 부품</button>
+  <button id="btn-big">🔍 큰 글씨</button>
+  <div id="now">⏸ 기다리는 중 — 왼쪽 아래에 말을 걸어 보세요</div>
+</div>
+
+<main id="main">
+  <section><h3>💬 대화 <small class="muted">에이전트의 말</small></h3>
+    <div class="scroll" id="chat"></div>
+    <form id="composer"><textarea id="input" rows="2" placeholder="말을 걸어 보세요. 링크를 붙여 넣으면 읽어 봅니다 (Enter 보내기)"></textarea>
+      <div style="display:flex;flex-direction:column;gap:4px"><button class="primary">보내기</button><button type="button" id="btn-stop">⏹ 멈춤</button><button type="button" id="btn-new">새 대화</button></div></form>
+  </section>
+  <section><h3>🔁 루프 <small class="muted">에이전트의 행동 (=로그)</small><span id="totals" class="muted"></span></h3>
+    <div class="scroll" id="loop"><p class="muted">여기에 루프가 한 바퀴씩 쌓입니다: 🧠 생각 → 🔧 손 → 결과 → 다시 🧠</p></div>
+  </section>
+  <section id="parts"><h3>🧩 부품 <small class="muted">켜고 끄면 파일이 바뀜</small></h3><div class="scroll" id="partsbody"></div></section>
+</main>
+<details id="logwrap"><summary>📜 원본 로그 (runs/…/trace.jsonl 과 같은 내용)</summary><pre id="log"></pre></details>
+
+<dialog id="dlg-folder"><form method="dialog" style="padding:14px 16px">
+  <h3 style="margin-top:0">📁 일할 폴더 고르기</h3>
+  <p style="background:var(--yellow);padding:6px 9px;border-radius:8px">원본은 그대로 두고 <b>사본</b>을 만듭니다. 파일 <b>이름과 앞부분</b>은 AI 서버로 갑니다. 싫은 파일은 체크를 빼세요.</p>
+  <label><input type="radio" name="kind" value="sample" checked> 샘플 폴더 (가상의 학생 다운로드 40개)</label><br>
+  <label><input type="radio" name="kind" value="downloads"> 내 다운로드 폴더</label><br>
+  <label><input type="radio" name="kind" value="path"> 폴더 경로 붙여 넣기 (Finder에서 폴더를 끌어다 놓아도 됨)</label>
+  <input id="folder-path" style="width:100%;margin:4px 0" placeholder="/Users/나/Desktop/레퍼런스">
+  <div class="files" id="folder-list"></div>
+  <p style="text-align:right"><span id="folder-count" class="muted"></span> <button value="cancel">취소</button> <button class="primary" id="folder-go">사본 만들기</button></p>
+</form></dialog>
+<dialog id="dlg-file"><form method="dialog" style="padding:14px 16px"><h3 id="file-title" style="margin-top:0"></h3>
+  <p class="muted">이 파일을 직접(또는 Cursor로) 고쳐도 몇 초 안에 화면이 따라옵니다.</p><pre id="file-text"></pre><p style="text-align:right"><button class="primary">닫기</button></p></form></dialog>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pretty = (v) => { try { return JSON.stringify(typeof v === "string" ? JSON.parse(v) : v, null, 2); } catch { return String(v); } };
+let S = null, editAgent = null, lastActive = null, turn = null, totals = { turns: 0, tokens: 0, tools: 0 }, t0 = 0;
+const LEVELS = [["L1", "L1 챗봇"], ["L2", "L2 고정 순서"], ["L3", "L3 에이전트"], ["L4", "L4 에이전트 셋"]];
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.detail || `요청 실패 (${r.status})`);
+  return d;
+}
+const set = (target, key, value) => api("/api/set", { target, key, value }).then((d) => { S = d.state; render(); }).catch((e) => errCard({ stage: "설정", what: e.message, todo: "값을 확인하세요" }));
+
+// ───────── 상태바와 부품 ─────────
+function render() {
+  if (!S) return;
+  if (S.error) { status("❌ " + S.error, "err"); return; }
+  $("#levels").innerHTML = LEVELS.map(([k, n]) => `<button class="${S.level === k ? "on" : ""}" data-l="${k}">${n}</button>`).join("");
+  document.querySelectorAll("#levels button").forEach((b) => b.onclick = () => set("config", "level", b.dataset.l));
+  const f = S.folder;
+  $("#chips").innerHTML = `<span class="chip">${S.keys.model ? "✅" : "❌"} 모델 ${esc((S.model || "").split(":").pop())}</span>
+    <span class="chip">${S.keys.web ? "✅" : "❌"} 웹(Tavily)</span>
+    <span class="chip">${f.ok ? "✅ 사본 " + f.files + "개" : "❌ 사본 없음"}</span>`;
+  const active = S.level === "L3" ? S.agent : S.level === "L4" ? "curator" : "chatbot";
+  if (active !== lastActive || !S.agents[editAgent]) { editAgent = active; lastActive = active; }  // 단계를 바꾸면 지금 일하는 에이전트를 보여 줌
+  renderParts();
+}
+function renderParts() {
+  const a = S.agents[editAgent] || {};
+  const names = Object.keys(S.agents);
+  let h = `<label>편집할 에이전트 <select id="pick-agent">${names.map((n) => `<option value="${n}" ${n === editAgent ? "selected" : ""}>${esc(S.agents[n].title)}</option>`).join("")}</select></label>`;
+  if (S.level === "L3") h += `<label><input type="checkbox" id="use-agent" ${S.agent === editAgent ? "checked" : ""}> L3에서 이 에이전트 쓰기</label>`;
+  if (a.error) h += `<p class="why">${esc(a.error)}</p>`;
+  h += `<h4>✋ 손 (도구) <button data-file="agents/${editAgent}/agent.yaml">📄</button></h4>`;
+  h += Object.entries(S.hands).map(([n, x]) => `<label title="${esc(x.why)}"><input type="checkbox" data-hand="${n}" ${(a.hands || []).includes(n) ? "checked" : ""} ${n.startsWith("(") ? "disabled" : ""}>
+      ${x.icon} ${esc(n)} <span class="muted">${esc(x.module)}.py</span> ${x.ok ? "" : `<span class="why">${esc(x.why)}</span>`}
+      ${(a.hands || []).includes(n) ? `<span title="실행 전에 사람 승인">✋<input type="checkbox" data-ask="${n}" ${(a.ask_before || []).includes(n) ? "checked" : ""}></span>` : ""}</label>`).join("");
+  h += `<h4>🔁 루프 손잡이</h4>
+    <label>턴 한도 <input type="number" min="1" max="30" data-knob="max_turns" value="${a.max_turns ?? 8}"></label>
+    <label>웹 손 한도 <input type="number" min="0" max="20" data-limit="web" value="${(a.limits || {}).web ?? ""}" placeholder="없음"></label>
+    <label><input type="checkbox" data-knob="no_repeat" ${a.no_repeat ? "checked" : ""}> 같은 호출 막기</label>
+    <label>기다렸다 다시 <input type="number" min="0" max="8" data-knob="retry" value="${a.retry ?? 4}">번</label>
+    <label><input type="checkbox" data-knob="remember_tool_results" ${a.remember_tool_results ? "checked" : ""}> 읽은 내용 기억하기 (비용↑)</label>
+    <h4>📝 말투·규칙</h4><button data-file="agents/${editAgent}/persona.md">persona.md</button> ${(a.skills || []).map((s) => `<button data-file="skills/${s}/SKILL.md">SKILL.md</button>`).join("")}
+    <button data-file="config.yaml">config.yaml</button>`;
+  $("#partsbody").innerHTML = h;
+  const T = "agent:" + editAgent;
+  $("#pick-agent").onchange = (e) => { editAgent = e.target.value; renderParts(); };
+  if ($("#use-agent")) $("#use-agent").onchange = () => set("config", "agent", editAgent);
+  document.querySelectorAll("[data-hand]").forEach((c) => c.onchange = () => {
+    const list = new Set(a.hands || []); c.checked ? list.add(c.dataset.hand) : list.delete(c.dataset.hand); set(T, "hands", [...list]); });
+  document.querySelectorAll("[data-ask]").forEach((c) => c.onchange = () => {
+    const list = new Set(a.ask_before || []); c.checked ? list.add(c.dataset.ask) : list.delete(c.dataset.ask); set(T, "ask_before", [...list]); });
+  document.querySelectorAll("[data-knob]").forEach((c) => c.onchange = () => set(T, c.dataset.knob, c.type === "checkbox" ? c.checked : +c.value));
+  document.querySelectorAll("[data-limit]").forEach((c) => c.onchange = () => {
+    const l = { ...(a.limits || {}) }; c.value === "" ? delete l[c.dataset.limit] : l[c.dataset.limit] = +c.value; set(T, "limits", l); });
+  document.querySelectorAll("[data-file]").forEach((b) => b.onclick = () => showFile(b.dataset.file));
+}
+async function showFile(path) {
+  const d = await api("/api/file?path=" + encodeURIComponent(path));
+  $("#file-title").textContent = "📄 " + d.path; $("#file-text").textContent = d.text; $("#dlg-file").showModal();
+}
+function status(text, cls = "") { $("#now").textContent = text; $("#now").className = cls; }
+
+// ───────── 대화 ─────────
+function say(cls, text) { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; $("#chat").append(d); d.scrollIntoView({ block: "end" }); }
+function errCard(c) {
+  const d = document.createElement("div"); d.className = "card err";
+  d.innerHTML = `<b>❌ [${esc(c.stage)}] ${esc(c.what)}</b><br>할 일: ${esc(c.todo)}
+    ${c.raw ? `<details><summary>자세히 (원문 오류)</summary><pre>${esc(c.raw)}</pre></details>` : ""}
+    <div style="margin-top:4px"><button class="retry">↻ 다시 시도</button></div>`;
+  d.querySelector(".retry").onclick = () => lastText && send(lastText);
+  $("#chat").append(d); d.scrollIntoView({ block: "end" });
+}
+function approvalCard(v) {
+  const d = document.createElement("div"); d.className = "card"; d.id = "ap-" + v.id;
+  if (v.plan) {
+    const pick = {}; v.plan.items.forEach((it) => pick[it.id] = { action: it.status === "rejected" ? "reject" : "approve" });
+    d.innerHTML = `<b>✋ 계획표 심사 · v${v.plan.version}</b> <span class="muted">항목마다 ✅ ❌ ✏️ 고르고 보내세요. 노란 줄 = 지난 버전에서 바뀜</span>
+      <table><tr><th>#</th><th>지금</th><th>옮길 곳</th><th>이유</th><th></th></tr>${v.plan.items.map((it) =>
+        `<tr data-id="${it.id}" class="${it.changed ? "changed" : ""}"><td>${it.id}</td><td>${esc(it.src)}</td><td class="dst">${esc(it.dst)}</td><td>${esc(it.reason)}</td>
+         <td class="pick"><button type="button" data-a="approve">✅</button><button type="button" data-a="reject">❌</button><button type="button" data-a="edit">✏️</button></td></tr>`).join("")}</table>
+      <input class="note-in" style="width:100%;margin-top:6px" placeholder="💬 한마디 (예: 스크린샷은 다 한 방에) — 쓰면 계획을 다시 짭니다">
+      <div style="text-align:right;margin-top:4px"><button type="button" class="no">전체 취소</button> <button type="button" class="primary yes">보내기</button></div>`;
+    const paint = () => d.querySelectorAll("tr[data-id]").forEach((tr) => {
+      const p = pick[tr.dataset.id]; tr.classList.toggle("rej", p.action === "reject");
+      tr.querySelectorAll(".pick button").forEach((b) => b.classList.toggle("on", b.dataset.a === p.action)); });
+    d.querySelectorAll("tr[data-id]").forEach((tr) => tr.querySelectorAll(".pick button").forEach((b) => b.onclick = () => {
+      const id = tr.dataset.id;
+      if (b.dataset.a === "edit") { const nv = prompt("새 위치 (폴더/이름)", tr.querySelector(".dst").textContent); if (!nv) return; pick[id] = { action: "edit", dst: nv }; tr.querySelector(".dst").textContent = nv; }
+      else pick[id] = { action: b.dataset.a };
+      paint(); }));
+    paint();
+    d.querySelector(".yes").onclick = () => decide(v.id, { action: "submit", items: pick, comment: d.querySelector(".note-in").value });
+    d.querySelector(".no").onclick = () => decide(v.id, { action: "deny", comment: d.querySelector(".note-in").value });
+  } else {
+    d.innerHTML = `<b>✋ ${esc(v.tool)} 실행해도 될까요?</b><pre>${esc(pretty(v.args))}</pre>
+      <input class="note-in" style="width:100%" placeholder="💬 한마디 (선택)">
+      <div style="text-align:right;margin-top:4px"><button type="button" class="no">❌ 거절</button> <button type="button" class="primary yes">✅ 승인</button></div>`;
+    d.querySelector(".yes").onclick = () => decide(v.id, { action: "approve", comment: d.querySelector(".note-in").value });
+    d.querySelector(".no").onclick = () => decide(v.id, { action: "deny", comment: d.querySelector(".note-in").value });
+  }
+  $("#chat").append(d); d.scrollIntoView({ block: "end" });
+}
+const decide = (id, ans) => api("/api/approve/" + id, ans).catch((e) => alert(e.message));
+let lastText = "";
+async function send(text) {
+  lastText = text;
+  try { await api("/api/chat", { text }); $("#input").value = ""; } catch (e) { errCard({ stage: "보내기", what: e.message, todo: "잠시 뒤 다시" }); }
+}
+
+// ───────── 루프 타임라인 (aisuite 이벤트 → 화면) ─────────
+function note(html, cls = "") { const d = document.createElement("div"); d.className = "note " + cls; d.innerHTML = html; $("#loop").append(d); d.scrollIntoView({ block: "end" }); return d; }
+function newTurn(agent) {
+  totals.turns++; turn = document.createElement("div"); turn.className = "turn";
+  turn.innerHTML = `<div class="h"><span>턴 ${totals.turns}</span><span class="t">🧠 생각 중…</span></div><div class="body"></div>`;
+  $("#loop").append(turn); turn.scrollIntoView({ block: "end" }); turn.started = Date.now();
+}
+function step(html, cls = "") { if (!turn) newTurn(); const s = document.createElement("div"); s.className = "step " + cls; s.innerHTML = html; turn.querySelector(".body").append(s); s.scrollIntoView({ block: "end" }); return s; }
+const isErr = (r) => /^"?error:/.test(String(r || "").trim()) || String(r || "").includes('"error":');
+const elapsed = () => ((Date.now() - t0) / 1000).toFixed(1) + "초";
+
+function onEvent(e) {
+  const d = e.data || {}, ag = e.agent;
+  $("#log").textContent += JSON.stringify(e) + "\n";
+  switch (e.event_type) {
+    case "state": S = d; render(); break;
+    case "chat.user": t0 = Date.now(); totals = { turns: 0, tokens: 0, tools: 0 }; $("#loop").innerHTML = ""; turn = null;
+      say("me", d.text); status(`🧠 ${d.level} 시작…`); break;
+    case "agent.start": turn = null;
+      note(`<div class="agent">${esc(d.title)} <small>손 ${d.hands.length}개 · 턴 한도 ${d.knobs.max_turns}${d.hands_off.length ? " · 꺼진 손: " + esc(d.hands_off.join(", ")) : ""}</small></div>`); break;
+    case "skill.loaded": note(`📘 스킬 ${esc(d.skills.join(", "))}을 읽음 (+${d.chars}자 → AI에게 보내는 글이 늘어남)`, "good"); break;
+    case "model.send": newTurn(ag); status(`🧠 ${ag} 생각 중… (턴 ${totals.turns} · ${elapsed()})`); break;
+    case "model.response": {
+      const r = d.response || {}; const u = d.usage || {};
+      totals.tokens += (u.total_tokens || (u.prompt_tokens || 0) + (u.completion_tokens || 0) || 0);
+      if (turn) turn.querySelector(".t").textContent = `${((Date.now() - turn.started) / 1000).toFixed(1)}초 · 토큰 ${u.total_tokens || "?"}`;
+      const calls = (r.tool_calls || []).map((c) => c.name || (c.function || {}).name);
+      step(calls.length ? `🧠 손을 고름: <b>${esc(calls.join(", "))}</b>` : `🧠 최종 답: ${esc((r.text_preview || "").slice(0, 160))}${(r.text_length || 0) > 160 ? "…" : ""}`);
+      break; }
+    case "tool.started": if (d.by) { turn = null; newTurn(); turn.querySelector(".t").textContent = "⚙️ 코드가 정한 순서"; }
+      totals.tools++; turn && (turn.lastStep = step(`🔧 <b>${esc(d.tool_name)}</b> <span class="muted">실행 중…</span><details><summary>인자</summary><pre>${esc(pretty(d.arguments))}</pre></details>`));
+      status(`🔧 ${d.tool_name} 실행 중… (${elapsed()})`); break;
+    case "tool.completed": case "tool.failed": {
+      const res = d.result_preview ?? d.error ?? ""; const bad = e.event_type === "tool.failed" || isErr(res);
+      const s = turn && turn.lastStep;
+      if (s) { s.classList.toggle("bad", bad); s.querySelector(".muted").textContent = bad ? "❌ 실패 (루프는 계속)" : "✅ 결과";
+        s.insertAdjacentHTML("beforeend", `<details ${bad ? "open" : ""}><summary>결과</summary><pre>${esc(typeof res === "string" ? res : pretty(res))}</pre></details>`); }
+      break; }
+    case "tool.denied": step(`✋ <b>${esc(d.tool_name)}</b> 실행 안 함 — ${esc(d.reason || "")}`, "warn"); break;
+    case "loop.repeat_blocked": step(`♻️ 같은 호출(${esc(d.tool)}) → 다시 실행하지 않음 <span class="muted">(루프 손잡이: 같은 호출 막기)</span>`, "warn"); break;
+    case "loop.limit": step(`⛔ ${esc(d.tool)} 한도 ${d.limit}번 도달 <span class="muted">(루프 손잡이)</span>`, "warn"); break;
+    case "retry.waiting": note(`⏳ 서버가 바쁨(${d.code}) → ${d.wait_s}초 기다렸다 다시 (${d.attempt}/${d.max})`, "warn");
+      status(`⏳ ${d.wait_s}초 기다리는 중 (재시도 ${d.attempt}/${d.max}) — 고장 아님, 서버 한도`, "wait"); break;
+    case "approval.requested": approvalCard(d); note(`✋ 사람 승인 기다리는 중: ${esc(d.tool)}`, "warn"); status("✋ 승인 대기 — 왼쪽 카드에서 골라 주세요", "wait"); break;
+    case "approval.resolved": { const c = $("#ap-" + d.id); if (c) { c.className = "card ok"; c.querySelectorAll("button,input").forEach((b) => b.disabled = true); }
+      const a = d.answer || {}; note(`✋ 결정: ${a.action === "approve" ? "✅ 승인" : a.action === "deny" ? "❌ 거절" : "항목별 심사"}${a.comment ? " 💬 " + esc(a.comment) : ""}`); break; }
+    case "agent.handoff": note(`➡️ 넘겨주기: ${esc(d.from)} → ${esc(d.to)}`, "good"); break;
+    case "check.unmoved": note(`🔎 코드가 직접 확인: 안 옮긴 파일 ${d.files.length}개 ${esc(d.files.slice(0, 8).join(", "))}`); break;
+    case "run.max_turns": note(`⛔ 턴 한도 ${d.max_turns}에 도달해서 루프를 멈춤`, "warn"); break;
+    case "warn.says_but_no_action": note("⚠️ " + esc(d.text), "warn"); say("ai", "⚠️ " + d.text); break;
+    case "error.card": errCard(d); note(`❌ [${esc(d.stage)}] ${esc(d.what)}`, "bad"); status(`❌ [${d.stage}] ${d.what}`, "err"); break;
+    case "chat.reply": say("ai", d.text); break;
+    case "run.end": if (!$("#now").classList.contains("err")) status(`✅ 끝 · 턴 ${totals.turns} · 손 ${totals.tools}번 · 토큰 ${totals.tokens} · ${elapsed()}`, "done");
+      api("/api/state").then((s) => { S = s; render(); }); break;
+  }
+  $("#totals").textContent = totals.turns ? `턴 ${totals.turns} · 손 ${totals.tools} · 토큰 ${totals.tokens}` : "";
+}
+
+// ───────── 폴더 고르기 ─────────
+async function loadFolder() {
+  const kind = document.querySelector("input[name=kind]:checked").value, path = $("#folder-path").value;
+  $("#folder-list").innerHTML = "<p class='muted'>읽는 중…</p>";
+  try {
+    const d = await api(`/api/folder/preview?kind=${kind}&path=${encodeURIComponent(path)}`);
+    $("#folder-list").innerHTML = `<p class="muted">원본: ${esc(d.source)}</p>` + d.items.map((it) =>
+      `<label style="display:block"><input type="checkbox" value="${esc(it.name)}" ${it.skip ? "" : "checked"}> ${esc(it.name)} <span class="muted">${it.kb}KB</span> ${it.skip ? `<span style="color:var(--red)">빠짐: ${esc(it.skip)}</span>` : ""}</label>`).join("");
+    const count = () => $("#folder-count").textContent = document.querySelectorAll("#folder-list input:checked").length + "개 선택 (최대 60)";
+    document.querySelectorAll("#folder-list input").forEach((i) => i.onchange = count); count();
+  } catch (e) { $("#folder-list").innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`; }
+}
+$("#btn-folder").onclick = () => { $("#dlg-folder").showModal(); loadFolder(); };
+document.querySelectorAll("input[name=kind]").forEach((r) => r.onchange = loadFolder);
+$("#folder-path").onchange = () => { document.querySelector("input[value=path]").checked = true; loadFolder(); };
+$("#folder-go").onclick = async (ev) => {
+  ev.preventDefault();
+  const include = [...document.querySelectorAll("#folder-list input:checked")].map((i) => i.value);
+  try { const r = await api("/api/folder/copy", { kind: document.querySelector("input[name=kind]:checked").value, path: $("#folder-path").value, include });
+    $("#dlg-folder").close(); say("ai", `📁 사본을 만들었어요: ${r.copied}개 → ${r.dest}`); } catch (e) { alert(e.message); }
+};
+
+// ───────── 시작 ─────────
+$("#composer").onsubmit = (e) => { e.preventDefault(); const t = $("#input").value.trim(); if (t) send(t); };
+$("#input").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#composer").requestSubmit(); } };
+$("#btn-stop").onclick = () => api("/api/stop", {});
+$("#btn-new").onclick = () => api("/api/new_chat", {}).then(() => { $("#chat").innerHTML = ""; say("ai", "새 대화를 시작합니다 (에이전트 기억을 비웠어요)."); });
+$("#btn-undo").onclick = async () => { if (!confirm("옮긴 파일을 모두 원래 자리로 되돌릴까요?")) return;
+  const r = await api("/api/undo", {}); say("ai", r.moves.length ? "↩️ 되돌림:\n" + r.moves.join("\n") : "되돌릴 이동이 없습니다."); };
+$("#btn-parts").onclick = () => $("#main").classList.toggle("noparts");
+$("#btn-big").onclick = () => document.body.classList.toggle("big");
+api("/api/state").then((s) => { S = s; render(); if (!s.keys.model) errCard({ stage: "준비", what: "모델 키가 없습니다", todo: "키트 폴더의 .env 파일에 ZAI_API_KEY를 넣고 앱을 다시 켜세요" }); });
+new EventSource("/api/events").onmessage = (m) => onEvent(JSON.parse(m.data));
+</script>
+</body>
+</html>
