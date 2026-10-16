@@ -42,6 +42,10 @@ _op.OpenaiProvider.chat_completions_create = _wrapped
 
 def run(msgs, tools, max_turns=8):
     print(f"provider={PROVIDER} model={MODEL}", flush=True)
+    msgs = list(msgs)
+    ko = "\n항상 한국어로 답해."
+    if msgs and msgs[0]["role"] == "system": msgs[0] = {**msgs[0], "content": msgs[0]["content"] + ko}
+    else: msgs.insert(0, {"role": "system", "content": ko.strip()})
     if os.getenv("EXTRA_RULES") == "1":
         rules = "\n규칙: 도구 결과가 없으면 2번까지만 다시 시도하고, 그래도 없으면 멈추고 지금까지 아는 것으로 답해.\n규칙: apply_move는 승인을 스스로 처리하니, 채팅으로 허락을 묻지 말고 바로 apply_move를 호출해."
         msgs = list(msgs)

@@ -1,0 +1,14 @@
+provider=zai model=openai:glm-4.5-flash
+  turn 1: 2.5s, tokens in/out=361/52, tools=['web_search']
+  [web 1/5] tavily_search {'query': '반 고흐 해바라기 한국어 위키', 'max_results': 3}
+  turn 2: 3.6s, tokens in/out=7170/66, tools=['web_read']
+  [web 2/5] tavily_extract {'urls': ['https://ko.wikipedia.org/wiki/%ED%95%B4%EB%B0%94%EB%9D%BC%EA%B8%B0_(%EB%B0%98_%EA%B3%A0%ED%9D%90)']}
+  turn 3: 8.0s, tokens in/out=10875/232, tools=없음(최종답)
+STATS {'turns': 3, 'r429': 0, 'wait': 0.0, 'in': 18406, 'out': 350} total=18.8s
+call 1 ('web_search', '{"query":"반 고흐 해바라기 한국어 위키"}')
+call 2 ('web_read', '{"url":"https://ko.wikipedia.org/wiki/%ED%95%B4%EB%B0%94%EB%9D%BC%EA%B8%B0_(%EB%B0%98_%EA%B3%A0%ED%9D%90)"}')
+time 18.8s web_calls=2
+ 
+반 고흐의 해바라기는 네덜란드 화가 빈센트 반 고흐가 그린 두 개의 정물화 연작 작품입니다. 이 작품들은 1887년 파리에서 시작된 첫 번째 연작과 1년 후 아를에서 제작된 두 번째 연작으로, 모두 그의 고독한 친구인 폴 고갱과 연결되어 있습니다. 반 고흐는 고갱을 위한 미술품 전시를 위해 해바라기를 주제로 한 연작을 그리기로 결정했으며, 이 작품들은 그의 예술적 경이로움과 감정적 깊이를 담고 있습니다.
+
+**출처 URL:** https://ko.wikipedia.org/wiki/%ED%95%B4%EB%B0%94%EB%9D%BC%EA%B8%B0_(%EB%B0%98_%EA%B3%A0%ED%9D%90)

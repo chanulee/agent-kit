@@ -1,0 +1,14 @@
+provider=zai model=openai:glm-4.5-flash
+  turn 1: 2.1s, tokens in/out=370/46, tools=['web_search']
+  [web 1/5] tavily_search {'query': '반 고흐 해바라기', 'max_results': 3}
+  turn 2: 3.6s, tokens in/out=3866/66, tools=['web_read']
+  [web 2/5] tavily_extract {'urls': ['https://ko.wikipedia.org/wiki/%ED%95%B4%EB%B0%94%EB%9D%BC%EA%B8%B0_(%EB%B0%98_%EA%B3%A0%ED%9D%90)']}
+  turn 3: 7.5s, tokens in/out=7571/213, tools=없음(최종답)
+STATS {'turns': 3, 'r429': 0, 'wait': 0.0, 'in': 11807, 'out': 325} total=16.9s
+call 1 ('web_search', '{"query":"반 고흐 해바라기"}')
+call 2 ('web_read', '{"url":"https://ko.wikipedia.org/wiki/%ED%95%B4%EB%B0%94%EB%9D%BC%EA%B8%B0_(%EB%B0%98_%EA%B3%A0%ED%9D%90)"}')
+time 16.9s web_calls=2
+ 
+반 고흐의 해바라기는 1888년과 1889년에 그려진 두 점의 유화 작품으로, 고양이와 우리 모두의 책과 같은 작품의 일부로 제작되었습니다. 이 작품들은 고양이의 연속성을 강조하며, 두 점 모두 그의 예술적 연구의 중요한 부분을 형성합니다. 해바라기 시리즈는 반 고흐의 색채 사용과 감정 표현을 잘 보여주는 대표적인 작품으로, 현재 전 세계 주요 미술관에 소장되어 있습니다.
+
+출처: https://ko.wikipedia.org/wiki/%ED%95%B4%EB%B0%94%EB%9D%BC%EA%B8%B0_(%EB%B0%98_%EA%B3%A0%ED%9D%90)
