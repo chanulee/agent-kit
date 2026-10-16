@@ -176,7 +176,7 @@ def test_move_needs_human_review(kit, monkeypatch):
     def mv(_=None):
         p = json.loads((folder / ".agentkit/plan.json").read_text())
         return reply(calls=[("move_files", {"plan_id": p["plan_id"]})])
-    eng = engine_with([plan(), mv, reply("정리했어요")], monkeypatch)
+    eng = engine_with([reply(calls=[("load_skill", {"name": "curator"})]), plan(), mv, reply("정리했어요")], monkeypatch)
 
     def human():
         while not eng.pending:
@@ -188,6 +188,27 @@ def test_move_needs_human_review(kit, monkeypatch):
     assert (folder / "문서/todo.md").exists()
     ev = kinds(eng.events())
     assert "approval.requested" in ev and "approval.resolved" in ev and "skill.loaded" in ev
+
+
+def test_skill_is_read_only_when_needed(kit, monkeypatch):
+    """스킬은 처음엔 이름과 한 줄 설명만. 본문은 load_skill을 부를 때만 대화에 들어갑니다."""
+    root, _ = kit
+    core.set_yaml(root / "agents/my-agent/agent.yaml", "skills", ["curator"])
+    seen = []
+    eng = engine_with([lambda: seen.append("1") or reply(calls=[("load_skill", {"name": "curator"})]),
+                       reply(calls=[("load_skill", {"name": "research-note"})]),   # 켜지 않은 스킬
+                       reply("다 읽었어요")], monkeypatch)
+    sent = []
+    real = core._orig_create
+    monkeypatch.setattr(core, "_orig_create", lambda self, model, messages, **kw: sent.append(messages) or real(self, model, messages, **kw))
+    eng.run("정리 규칙이 뭐야?")
+    system = sent[0][0]["content"]
+    assert "- curator: 정리 스킬" in system and "## 전시실(폴더)" not in system      # 처음엔 목록만
+    assert any("## 전시실(폴더)" in str(m) for m in sent[1])          # 읽은 뒤에는 본문이 대화에
+    evs = eng.events()
+    assert [e["data"]["skills"] for e in evs if e["event_type"] == "skill.loaded"] == [["curator"]]
+    bad = [e for e in evs if e["event_type"] == "tool.completed" and "켜져 있지 않습니다" in json.dumps(e["data"], ensure_ascii=False)]
+    assert bad
 
 
 def test_missing_key_is_a_clear_card(kit, monkeypatch):

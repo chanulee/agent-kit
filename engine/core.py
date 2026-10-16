@@ -61,9 +61,24 @@ def load_agent(name: str) -> dict:
     for k, v in {"title": name, "tools": [], "max_turns": 8, "limits": {}, "no_repeat": True,
                  "ask_before": [], "retry": 4, "remember_tool_results": False, "skills": []}.items():
         a.setdefault(k, v)
-    a["skill_text"] = "\n\n".join((ROOT / "skills" / s / "SKILL.md").read_text(encoding="utf-8")
-                                  for s in a["skills"] if (ROOT / "skills" / s / "SKILL.md").exists())
     return a
+
+
+def skill_title(name: str) -> str:
+    """SKILL.md 첫 줄(제목)을 한 줄 설명으로 씁니다."""
+    md = ROOT / "skills" / name / "SKILL.md"
+    if not md.exists():
+        return ""
+    return md.read_text(encoding="utf-8").splitlines()[0].lstrip("# ").strip() if md.stat().st_size else name
+
+
+def skill_index(names: list[str]) -> str:
+    """시스템 프롬프트에는 스킬의 이름과 한 줄 설명만 넣습니다. 본문은 load_skill로 필요할 때 읽습니다."""
+    rows = [f"- {n}: {skill_title(n)}" for n in names if (ROOT / "skills" / n / "SKILL.md").exists()]
+    if not rows:
+        return ""
+    return ("## 쓸 수 있는 스킬\n그 일을 하기 전에 load_skill(name)으로 본문을 먼저 읽고, 읽은 순서대로 일한다.\n"
+            + "\n".join(rows))
 
 
 def load_mcp() -> dict:
@@ -322,6 +337,25 @@ class Engine:
                             "키트 폴더의 .env 파일에 키를 붙여 넣고 앱을 다시 켜세요")
         return ai.Client({"openai": {"api_key": key, "base_url": cfg.get("base_url"), "timeout": 90, "max_retries": 0}})
 
+    def skill_tool(self, allowed: list[str], agent: str):
+        """엔진이 주는 손: 켜 둔 스킬의 본문을 읽어 옵니다. 읽는 순간 대화(컨텍스트)에 본문이 들어갑니다."""
+        bus = self.bus
+
+        def load_skill(name: str) -> str:
+            """Read the full instructions of one skill listed under '쓸 수 있는 스킬'. Call it before doing that kind of work.
+
+            Args:
+                name: skill name exactly as listed, e.g. 'curator'
+            """
+            name = name.strip()
+            md = ROOT / "skills" / name / "SKILL.md"
+            if name not in allowed or not md.exists():
+                return f"error: '{name}' 스킬은 켜져 있지 않습니다. 쓸 수 있는 스킬: {', '.join(allowed)}"
+            text = md.read_text(encoding="utf-8")
+            bus.emit("skill.loaded", {"skills": [name], "chars": len(text)}, agent)
+            return text
+        return load_skill
+
     def run_agent(self, name: str, text: str, cfg: dict, keep_history=True) -> str:
         a = load_agent(name)
         ctx = Ctx(self, a)
@@ -329,13 +363,14 @@ class Engine:
         status = tool_status()
         picked = [ctx.wrap(n) for n in a["tools"] if status.get(n, {}).get("ok")]
         off = [n for n in a["tools"] if not status.get(n, {}).get("ok")]
-        instructions = a["persona"] + ("\n\n" + a["skill_text"] if a["skill_text"] else "") + "\n\n항상 한국어로 답해."
+        index = skill_index(a["skills"])
+        if index:
+            picked.append(self.skill_tool(a["skills"], name))
+        instructions = a["persona"] + ("\n\n" + index if index else "") + "\n\n항상 한국어로 답해."
         self.bus.emit("agent.start", {"title": a["title"], "tools": [t.__name__ for t in picked], "tools_off": off,
                                       "knobs": {k: a[k] for k in ("max_turns", "limits", "no_repeat", "ask_before",
                                                                   "retry", "remember_tool_results")},
                                       "skills": a["skills"], "context_chars": len(instructions)}, name)
-        if a["skill_text"]:
-            self.bus.emit("skill.loaded", {"skills": a["skills"], "chars": len(a["skill_text"])}, name)
         settings = {"extra_body": {"thinking": {"type": "disabled"}}} if "z.ai" in str(cfg.get("base_url")) else {}
         agent = ai.Agent(name=name, model=cfg["model"], instructions=instructions, tools=picked, model_settings=settings)
         hist = self.history.setdefault(name, []) if keep_history else []
