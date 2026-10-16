@@ -1,0 +1,18 @@
+[tavily-mcp] no TAVILY_API_KEY set; running in keyless mode. Search and extract are available; other tools will return a message explaining that an API key is required.
+Tavily MCP server running on stdio
+provider=zai model=openai:glm-4.5-flash
+  turn 1: 1.9s, tokens in/out=238/47, tools=['tavily_search']
+  turn 2: 1.2s, tokens in/out=345/9, tools=['tavily_search']
+  turn 3: 1.4s, tokens in/out=414/39, tools=['tavily_search']
+  turn 4: 2.0s, tokens in/out=513/61, tools=['tavily_search']
+  turn 5: 2.4s, tokens in/out=634/70, tools=없음(최종답)
+STATS {'turns': 5, 'r429': 0, 'wait': 0.0, 'in': 2144, 'out': 226} total=11.6s
+call 1 ('tavily_search', '{"query":"Van Gogh Sunflowers Korean Wikipedia"}')
+call 2 ('tavily_search', '{}')
+call 3 ('tavily_search', '{"query":"반 고흐 해바라기"}')
+call 4 ('tavily_search', '{"query":"Van Gogh Sunflowers Korean Wikipedia article"}')
+time 11.6s
+ 
+I apologize, but I'm experiencing technical difficulties with the search function. Let me try to extract the Korean Wikipedia article directly if you can provide the URL, or I can try a different search approach.
+
+Could you please provide the Korean Wikipedia URL for Van Gogh's Sunflowers, or would you like me to try a different search method?

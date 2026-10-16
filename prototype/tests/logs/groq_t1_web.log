@@ -1,0 +1,55 @@
+provider=groq model=openai:openai/gpt-oss-120b
+  [429/503] 재시도 없이 중단
+Traceback (most recent call last):
+  File "/tmp/aisuite/aisuite/providers/openai_provider.py", line 46, in chat_completions_create
+    response = self.client.chat.completions.create(
+        model=model,
+        messages=transformed_messages,
+        **kwargs,  # Pass any additional arguments to the OpenAI API
+    )
+  File "/tmp/sv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/tmp/sv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 1318, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<53 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/sv/lib/python3.13/site-packages/openai/_base_client.py", line 1440, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/sv/lib/python3.13/site-packages/openai/_base_client.py", line 1213, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m534sxzdewc8mp1nyv606bvd` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7687, Requested 1480. Please try again in 8.7525s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/workshop/tests/t1_web.py", line 5, in <module>
+    ans,calls,dt=run([{"role":"user","content":"Search for Van Gogh Sunflowers, read the Korean Wikipedia article, summarize in 3 Korean sentences with source URL"}],tools)
+                 ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/workshop/tests/common.py", line 43, in run
+    r = client.chat.completions.create(model=MODEL, messages=msgs, tools=tools, max_turns=max_turns)
+  File "/tmp/aisuite/aisuite/client.py", line 518, in create
+    return self._tool_runner(
+           ~~~~~~~~~~~~~~~~~^
+        provider,
+        ^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "/tmp/aisuite/aisuite/client.py", line 343, in _tool_runner
+    response = provider.chat_completions_create(
+        model_name, messages, **kwargs
+    )
+  File "/workspace/workshop/tests/common.py", line 20, in _wrapped
+    r = _orig(self, *a, **k)
+  File "/tmp/aisuite/aisuite/providers/openai_provider.py", line 53, in chat_completions_create
+    raise LLMError(f"An error occurred: {e}")
+aisuite.provider.LLMError: An error occurred: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m534sxzdewc8mp1nyv606bvd` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7687, Requested 1480. Please try again in 8.7525s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}

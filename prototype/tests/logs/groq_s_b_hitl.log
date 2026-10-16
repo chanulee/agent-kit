@@ -1,0 +1,17 @@
+provider=groq model=openai:openai/gpt-oss-120b
+  turn 1: 0.5s, tokens in/out=213/98, tools=['list_files']
+  turn 2: 1.0s, tokens in/out=334/341, tools=없음(최종답)
+STATS {'turns': 2, 'r429': 0, 'wait': 0.0, 'in': 547, 'out': 439} total=1.5s
+[('list_files', '{}')] 
+ 아래와 같이 파일들을 종류별 폴더에 이동하려고 합니다.  
+각 항목에 대해 **승인**(그대로 진행) 혹은 **수정**(다른 경로나 폴더명) 혹은 **거절**(이동하지 않음) 의 의견을 주세요.
+
+| 현재 파일 | 제안 이동 대상 |
+|-----------|----------------|
+| `IMG_1.jpg` | `Images/IMG_1.jpg` |
+| `IMG_2.jpg` | `Images/IMG_2.jpg` |
+| `invoice.pdf` | `PDFs/invoice.pdf` |
+| `memo.txt` | `Texts/memo.txt` |
+
+원하시는 대로 답변해 주시면 바로 `apply_move`를 실행하겠습니다.
+트리: ['IMG_1.jpg', 'IMG_2.jpg', 'invoice.pdf', 'memo.txt']

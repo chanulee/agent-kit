@@ -1,0 +1,12 @@
+provider=groq model=openai:openai/gpt-oss-120b
+  turn 1: 0.6s, tokens in/out=172/102, tools=['met_search']
+  turn 2: 0.3s, tokens in/out=279/45, tools=['met_search']
+  turn 3: 0.3s, tokens in/out=333/39, tools=['met_search']
+  turn 4: 0.4s, tokens in/out=386/80, tools=['met_search']
+  turn 5: 0.4s, tokens in/out=469/41, tools=['met_search']
+  turn 6: 1.3s, tokens in/out=524/199, tools=['met_search']
+  turn 7: 0.4s, tokens in/out=723/66, tools=['met_search']
+  turn 8: 0.6s, tokens in/out=803/44, tools=['met_search']
+STATS {'turns': 8, 'r429': 0, 'wait': 0.0, 'in': 3689, 'out': 616} total=15.2s
+[('met_search', '{"q":"sunflower"}'), ('met_search', '{"q":"Sunflowers"}'), ('met_search', '{"q":"Van Gogh Sunflowers"}'), ('met_search', '{"q":"sunflower"}'), ('met_search', '{"q":"sun flower"}'), ('met_search', '{"q":"Van Gogh"}'), ('met_search', '{"q":"Cezanne"}'), ('met_search', '{"q":"flower"}')] 15.2s
+ None

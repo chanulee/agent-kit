@@ -1,0 +1,79 @@
+provider=groq model=openai:openai/gpt-oss-120b
+  turn 1: 0.5s, tokens in/out=159/35, tools=['list_files']
+  turn 2: 1.1s, tokens in/out=243/367, tools=없음(최종답)
+STATS {'turns': 2, 'r429': 0, 'wait': 0.0, 'in': 402, 'out': 402} total=1.6s
+탐정: [('list_files', '{}')] 
+ - **IMG_2031.jpg**: 스마트폰이나 카메라로 촬영한 일반 사진 파일일 가능성이 높습니다.  
+- **Screenshot 1.png**: 컴퓨터 화면을 캡처한 스크린샷 이미지로, 특정 프로그램이나 웹페이지의 화면을 담고 있을 것으로 보입니다.  
+- **receipt_coupang.pdf**: 쿠팡에서 구매한 물건에 대한 영수증/주문 내역이 PDF 형식으로 저장된 파일입니다.  
+- **setup.dmg**: macOS용 설치 프로그램 이미지 파일이며, 어떤 프로그램이나 앱을 설치하기 위한 패키지일 가능성이 큽니다.  
+- **sunflower_ref.jpg**: 해바라기 사진을 참고용으로 저장한 이미지이며, 디자인·일러스트·학습 자료 등에서 레퍼런스로 쓰일 수 있습니다.  
+- **과제3_최종.pdf**: “과제 3”의 최종본을 의미하는 PDF 파일로, 아마도 학교·수업 과제의 완성본일 것입니다.
+provider=groq model=openai:openai/gpt-oss-120b
+  turn 3: 0.5s, tokens in/out=538/37, tools=['list_files']
+  turn 4: 0.7s, tokens in/out=624/198, tools=['apply_move']
+  [승인] IMG_2031.jpg -> 이미지/IMG_2031.jpg : approve 
+  turn 5: 0.4s, tokens in/out=845/35, tools=['apply_move']
+  [승인] sunflower_ref.jpg -> 이미지/sunflower_ref.jpg : approve 
+  turn 6: 0.7s, tokens in/out=912/41, tools=['apply_move']
+  [승인] Screenshot 1.png -> 이미지/스크린샷/Screenshot 1.png : approve 
+  turn 7: 0.3s, tokens in/out=1003/37, tools=['apply_move']
+  [승인] receipt_coupang.pdf -> 돈/receipt_coupang.pdf : approve 
+  turn 8: 0.4s, tokens in/out=1067/33, tools=['apply_move']
+  [승인] setup.dmg -> 기타/setup.dmg : approve 
+  turn 9: 0.3s, tokens in/out=1128/41, tools=['apply_move']
+  [승인] 과제3_최종.pdf -> 수업/과제3_최종.pdf : approve 
+  [429/503] 재시도 없이 중단
+Traceback (most recent call last):
+  File "/tmp/aisuite/aisuite/providers/openai_provider.py", line 46, in chat_completions_create
+    response = self.client.chat.completions.create(
+        model=model,
+        messages=transformed_messages,
+        **kwargs,  # Pass any additional arguments to the OpenAI API
+    )
+  File "/tmp/sv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/tmp/sv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 1318, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<53 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/sv/lib/python3.13/site-packages/openai/_base_client.py", line 1440, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/sv/lib/python3.13/site-packages/openai/_base_client.py", line 1213, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m534sxzdewc8mp1nyv606bvd` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6729, Requested 1403. Please try again in 990ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/workshop/tests/s_a_pipeline.py", line 10, in <module>
+    a2,c2,_=run([{"role":"system","content":"너는 큐레이터. 아래 규칙대로 파일을 apply_move로 하나씩 옮겨. 끝나면 한 줄 요약.\n"+skill},{"role":"user","content":"탐정 보고:\n"+(a1 or "")[:600]}],[kit.list_files,kit.apply_move],max_turns=10)
+            ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/workshop/tests/common.py", line 43, in run
+    r = client.chat.completions.create(model=MODEL, messages=msgs, tools=tools, max_turns=max_turns)
+  File "/tmp/aisuite/aisuite/client.py", line 518, in create
+    return self._tool_runner(
+           ~~~~~~~~~~~~~~~~~^
+        provider,
+        ^^^^^^^^^
+    ...<7 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "/tmp/aisuite/aisuite/client.py", line 343, in _tool_runner
+    response = provider.chat_completions_create(
+        model_name, messages, **kwargs
+    )
+  File "/workspace/workshop/tests/common.py", line 20, in _wrapped
+    r = _orig(self, *a, **k)
+  File "/tmp/aisuite/aisuite/providers/openai_provider.py", line 53, in chat_completions_create
+    raise LLMError(f"An error occurred: {e}")
+aisuite.provider.LLMError: An error occurred: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m534sxzdewc8mp1nyv606bvd` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 6729, Requested 1403. Please try again in 990ms. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
