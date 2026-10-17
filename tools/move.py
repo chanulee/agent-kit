@@ -109,6 +109,7 @@ def move_files(plan_id: str = "") -> str:
                 n += 1
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dst))
+            _prune_empty(src.parent)
         except (PermissionError, FileNotFoundError, OSError) as e:
             skipped.append(f"{it['src']} ({e})")
             continue
@@ -124,6 +125,27 @@ def move_files(plan_id: str = "") -> str:
     if plan.get("notes"):
         out += "\n사용자가 알려 준 규칙: " + " / ".join(plan["notes"]) + " → SKILL.md에 적어 두자고 제안하세요."
     return out
+
+
+OS_JUNK = {".DS_Store", "Thumbs.db", "desktop.ini"}  # 운영체제가 몰래 만드는 파일. 폴더가 빈 것으로 봅니다
+
+
+def _prune_empty(start: Path) -> None:
+    """파일을 옮기고 나서 비어 버린 폴더만 정리합니다. 사본 폴더 자체와 .agentkit 은 건드리지 않습니다.
+    (팀 실행으로 다시 정리하면 빈 폴더가 여럿 남아 Finder에서 지저분해 보였기 때문)"""
+    root = folder().resolve()
+    cur = start.resolve()
+    while cur != root and root in cur.parents and ".agentkit" not in cur.parts:
+        try:
+            left = list(cur.iterdir())
+        except OSError:
+            return
+        if any(p.name not in OS_JUNK for p in left):
+            return
+        for junk in left:
+            junk.unlink(missing_ok=True)
+        cur.rmdir()
+        cur = cur.parent
 
 
 # ---------------- 엔진이 쓰는 함수 (모델에게 보이는 도구는 아님) ----------------
@@ -195,8 +217,7 @@ def undo_all() -> list[str]:
             shutil.move(str(cur), str(back))
             mv["undone"] = True
             done.append(f"{mv['to']} → {mv['from']}")
-            if not any(cur.parent.iterdir()) and cur.parent != folder():
-                cur.parent.rmdir()  # 비어 버린 전시실 폴더만 정리
+            _prune_empty(cur.parent)  # 비어 버린 전시실 폴더만 정리 (하위 폴더까지)
         except (FileNotFoundError, PermissionError, OSError) as e:
             done.append(f"되돌리지 못함: {mv['to']} ({e})")
     _save("undo.json", undo)
