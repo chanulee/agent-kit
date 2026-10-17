@@ -15,6 +15,7 @@
 """
 import importlib
 import pkgutil
+import re
 import unicodedata
 from pathlib import Path
 
@@ -49,6 +50,19 @@ def load_all():
 def nfc(s: str) -> str:
     """한글 이름을 한 가지 방식(완성형, NFC)으로 맞춥니다. Mac은 자모로 쪼개 저장할 때가 있어서 필요합니다."""
     return unicodedata.normalize("NFC", s)
+
+
+WIN_BAD = re.compile(r'[<>:"|?*\x00-\x1f]')
+WIN_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+
+
+def safe_name(part: str) -> str:
+    """Windows에서도 만들 수 있는 이름으로 고칩니다. (< > : " | ? * 는 _ 로, 끝의 점·공백은 지움, CON 같은 예약어는 _ 붙임)
+    모델이 지어낸 폴더·파일 이름이 Mac에서는 되는데 Windows에서만 실패하는 일을 막습니다."""
+    part = WIN_BAD.sub("_", nfc(part)).rstrip(" .")
+    if part.split(".")[0].upper() in WIN_RESERVED:
+        part = "_" + part
+    return part or "_"
 
 
 def folder() -> Path:

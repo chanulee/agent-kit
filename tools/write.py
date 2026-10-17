@@ -1,5 +1,5 @@
 """파일 쓰기 도구: 사본 폴더 안에 마크다운 노트만 새로 만듭니다. 지우거나 덮어쓰지 않습니다."""
-from tools import folder, nfc, tool
+from tools import folder, nfc, safe_name, tool
 
 
 def _new_md(rel: str):
@@ -14,6 +14,7 @@ def _new_md(rel: str):
         raise PermissionError("마크다운(.md) 파일만 만들 수 있습니다.")
     if rel.startswith(".agentkit") or "/.agentkit" in rel:
         raise PermissionError("내부 폴더에는 쓸 수 없습니다.")
+    rel = "/".join(safe_name(p) for p in rel.split("/") if p not in ("", "."))  # Windows에서 못 쓰는 글자 정리
     dest = (root / rel).resolve()
     if root not in dest.parents:
         raise PermissionError("사본 폴더 밖 경로는 쓸 수 없습니다.")

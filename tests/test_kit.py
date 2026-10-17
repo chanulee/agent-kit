@@ -116,10 +116,10 @@ def test_plan_review_edit_reject_move_undo(kit):
     assert plan["version"] == 2 and plan["items"][0]["dst"] == "할일/todo.md"   # 엔진이 사람 수정을 지킴
     assert move.apply_review(pid, {"action": "submit", "items": {}})[0]
     (folder / "사진").mkdir()
-    (folder / "사진/IMG_2031.jpg").write_text("먼저 있던 파일")
+    (folder / "사진/IMG_2031.jpg").write_text("먼저 있던 파일", encoding="utf-8")
     out = move.move_files(pid)
     assert "2개를 옮겼습니다" in out and (folder / "cat_meme.gif").exists()
-    assert (folder / "사진/IMG_2031.jpg").read_text() == "먼저 있던 파일"        # 덮어쓰지 않음
+    assert (folder / "사진/IMG_2031.jpg").read_text(encoding="utf-8") == "먼저 있던 파일"        # 덮어쓰지 않음
     assert (folder / "사진/IMG_2031_2.jpg").exists()
     assert len(move.undo_all()) == 2 and (folder / "todo.md").exists()
 
@@ -174,7 +174,7 @@ def test_move_needs_human_review(kit, monkeypatch):
         return reply(calls=[("propose_plan", {"moves": [{"src": "todo.md", "dst": "문서/"}]})])
 
     def mv(_=None):
-        p = json.loads((folder / ".agentkit/plan.json").read_text())
+        p = json.loads((folder / ".agentkit/plan.json").read_text(encoding="utf-8"))
         return reply(calls=[("move_files", {"plan_id": p["plan_id"]})])
     eng = engine_with([reply(calls=[("load_skill", {"name": "curator"})]), plan(), mv, reply("정리했어요")], monkeypatch)
 

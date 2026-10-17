@@ -23,13 +23,23 @@ def load_env():
                         os.environ.setdefault(k.strip(), v)
 
 
+def _free(port: int) -> bool:
+    """포트가 비었는지. 연결해 보기(connect)는 Windows에서 몇 초씩 걸려서 직접 잡아 봅니다(bind)."""
+    with socket.socket() as s:
+        try:
+            s.bind(("127.0.0.1", port))
+            return True
+        except OSError:
+            return False
+
+
 def main():
     load_env()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     import uvicorn
     from engine.server import create_app
-    port = next(p for p in range(8765, 8785) if socket.socket().connect_ex(("127.0.0.1", p)) != 0)
+    port = next((p for p in range(8765, 8785) if _free(p)), 8765)
     url = f"http://127.0.0.1:{port}"
     print(f"\n  에이전트 대시보드 → {url}\n  끄려면 Ctrl+C\n")
     if "--no-browser" not in sys.argv:

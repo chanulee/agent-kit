@@ -5,13 +5,14 @@
 - 덮어쓰지 않고(_2, _3), 지우지 않고, 모든 이동은 undo.json 에 남습니다.
 """
 import json
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from tools import find, folder, nfc, tool
+from tools import find, folder, nfc, safe_name, tool
 
 
 class Move(BaseModel):
@@ -39,9 +40,10 @@ def _save(name, data):
 
 def _clean_dst(dst: str) -> str:
     dst = nfc(str(dst).strip().replace("\\", "/")).strip("/")
-    if not dst or dst.startswith("~") or ".." in dst.split("/") or ":" in dst or dst.startswith(".agentkit"):
+    if not dst or dst.startswith("~") or ".." in dst.split("/") or re.match(r"^[A-Za-z]:", dst) \
+            or dst.startswith(".agentkit"):
         raise PermissionError(f"사본 폴더 밖이나 잘못된 경로입니다: {dst}")
-    return dst
+    return "/".join(safe_name(p) for p in dst.split("/") if p not in ("", "."))
 
 
 @tool("📝", group="정리")
