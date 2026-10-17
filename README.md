@@ -12,7 +12,7 @@
    - Windows에는 git이 기본으로 없고, Mac은 git을 처음 쓸 때 개발 도구(수백 MB) 설치 창이 뜹니다. 수업 중에는 ZIP이 가장 빠릅니다. Cursor의 **Clone Repo**도 됩니다.
 2. [uv](https://docs.astral.sh/uv/)를 한 번 설치합니다.
    - Mac: 터미널에 `curl -LsSf https://astral.sh/uv/install.sh | sh`
-   - Windows: PowerShell에 `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+   - Windows: PowerShell에 `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
    - 설치가 끝나면 **터미널을 껐다 다시 켭니다.** 안 그러면 "uv를 찾을 수 없음"이 나옵니다.
 3. `.env.example`을 복사해 이름을 `.env`로 바꿉니다. 두 칸에 키를 붙여 넣습니다.
    - Mac Finder는 점(.)으로 시작하는 파일을 숨깁니다. Cursor 파일 목록에서 복사하거나, 키트 폴더의 터미널에서 `cp .env.example .env` (Windows: `copy .env.example .env`).
@@ -23,6 +23,7 @@
 4. 키트 폴더에서 `uv run app.py`
 5. 브라우저에 대시보드가 열립니다. 위쪽에 **모델 연결됨**, **Tavily 키 있음**이 보이면 준비가 된 것입니다. 웹 검색 스위치 자체는 5단계에서 켭니다.
 6. **📁 폴더 고르기** → 샘플 폴더(또는 내 폴더) → 사본 만들기. 에이전트는 이 사본만 봅니다. 원본은 그대로입니다.
+   - 사본 위치: Mac `~/agent-workshop/copy`, Windows `C:\Users\<내 이름>\agent-workshop\copy`. 4단계에서 Finder·탐색기로 열어 바뀐 걸 확인합니다.
 
 끄려면 터미널에서 Ctrl+C.
 

@@ -351,7 +351,7 @@ $("#folder-go").onclick = async (ev) => {
   ev.preventDefault();
   const include = [...document.querySelectorAll("#folder-list input:checked")].map((i) => i.value);
   try { const r = await api("/api/folder/copy", { kind: document.querySelector("input[name=kind]:checked").value, path: $("#folder-path").value, include });
-    $("#dlg-folder").close(); say("ai", `📁 사본을 만들었어요: ${r.copied}개 → ${r.dest}`); } catch (e) { alert(e.message); }
+    $("#dlg-folder").close(); say("ai", `📁 사본을 만들었어요: ${r.copied}개 → ${r.dest}` + ((r.skipped || []).length ? `\n복사하지 못해 건너뛴 파일 ${r.skipped.length}개 (다른 프로그램이 열어 두었거나 내려받는 중): ${r.skipped.slice(0, 5).join(", ")}` : "")); } catch (e) { alert(e.message); }
 };
 
 $("#composer").onsubmit = (e) => { e.preventDefault(); const t = $("#input").value.trim(); if (t) send(t); };

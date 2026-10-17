@@ -4,6 +4,7 @@ import json
 import os
 import queue
 import shutil
+import sys
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -26,20 +27,48 @@ def source_folder(kind: str, path: str = "") -> Path:
     if kind == "sample":
         return SAMPLE
     if kind == "downloads":
-        for c in (Path.home() / "Downloads", Path.home() / "다운로드", Path.home() / "OneDrive" / "Downloads"):
-            if c.is_dir():
+        for c in (_windows_downloads(), Path.home() / "Downloads", Path.home() / "다운로드",
+                  Path.home() / "OneDrive" / "Downloads"):
+            if c and c.is_dir():
                 return c
         raise HTTPException(400, "다운로드 폴더를 찾지 못했습니다. 폴더 경로를 직접 붙여 넣어 주세요.")
     p = Path(os.path.expanduser(path.strip().strip('"').strip("'")))
     if not p.is_dir():
-        raise HTTPException(400, f"폴더가 없습니다: {p}  (Finder에서 폴더를 이 칸으로 끌어다 놓아도 됩니다)")
+        raise HTTPException(400, f"폴더가 없습니다: {p}  (Finder나 탐색기에서 폴더를 이 칸으로 끌어다 놓거나, "
+                                 "탐색기 주소창의 경로를 복사해 붙여 넣으세요)")
     return p
+
+
+def _windows_downloads() -> Path | None:
+    """Windows는 다운로드 폴더를 OneDrive나 D: 드라이브로 옮겨 둔 경우가 많아서, 윈도우가 기억하는 실제 위치를 읽습니다."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import winreg
+        key = r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key) as k:
+            raw, _ = winreg.QueryValueEx(k, "{374DE290-123F-4565-9164-39C4925E467B}")  # 다운로드 폴더 번호
+        return Path(os.path.expandvars(raw))
+    except OSError:
+        return None
+
+
+OS_FILES = {"desktop.ini", "thumbs.db", ".ds_store"}  # 운영체제가 만드는 숨은 파일
 
 
 def preview(src: Path) -> list[dict]:
     items = []
-    for p in sorted(src.iterdir(), key=lambda x: -x.stat().st_mtime):
-        if not p.is_file() or p.name.startswith((".", "_dates")):
+    def mtime(x):
+        try:
+            return -x.stat().st_mtime
+        except OSError:
+            return 0
+    for p in sorted(src.iterdir(), key=mtime):
+        try:
+            if not p.is_file() or p.name.startswith((".", "_dates")) or p.name.lower() in OS_FILES:
+                continue
+            p.stat()
+        except OSError:  # Windows: 다른 프로그램이 잡고 있거나 OneDrive에만 있는 파일
             continue
         why = next((f"민감해 보이는 이름 '{w}'" for w in SENSITIVE if w in nfc(p.name).lower()), "")
         if p.stat().st_size > 20 * 1024 * 1024:
@@ -239,17 +268,21 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
         dest.mkdir(parents=True, exist_ok=True)
         dates = json.loads((SAMPLE / "_dates.json").read_text(encoding="utf-8")) if src == SAMPLE else {}
         chosen = set(b.get("include") or [])
-        n = 0
+        n, skipped = 0, []
         for p in src.iterdir():
             if p.is_file() and nfc(p.name) in chosen and n < 60:
-                shutil.copy2(p, dest / nfc(p.name))
+                try:
+                    shutil.copy2(p, dest / nfc(p.name))
+                except OSError as e:  # Windows: 내려받는 중, 다른 프로그램이 열어 둠, OneDrive에만 있음 → 건너뜀
+                    skipped.append(f"{nfc(p.name)} ({type(e).__name__})")
+                    continue
                 if p.name in dates:
                     t = datetime.fromisoformat(dates[p.name]).timestamp()
                     os.utime(dest / nfc(p.name), (t, t))
                 n += 1
         eng.history.clear()
         eng.bus.emit("state", safe_state())
-        return {"copied": n, "dest": str(dest)}
+        return {"copied": n, "dest": str(dest), "skipped": skipped}
 
     @app.post("/api/undo")
     def undo():
