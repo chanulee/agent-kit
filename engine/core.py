@@ -72,13 +72,33 @@ def skill_title(name: str) -> str:
     return md.read_text(encoding="utf-8").splitlines()[0].lstrip("# ").strip() if md.stat().st_size else name
 
 
+def skill_tools(name: str) -> list[str]:
+    """SKILL.md 본문에 이름이 적힌 도구들. (한글 조사가 바로 붙어도 찾도록 영문·숫자·_ 경계로 찾습니다)"""
+    md = ROOT / "skills" / name / "SKILL.md"
+    if not md.exists():
+        return []
+    body = md.read_text(encoding="utf-8")
+    return [t for t in tools.TOOLS if re.search(rf"(?<![A-Za-z0-9_]){re.escape(t)}(?![A-Za-z0-9_])", body)]
+
+
 def skill_index(names: list[str]) -> str:
-    """시스템 프롬프트에는 스킬의 이름과 한 줄 설명만 넣습니다. 본문은 load_skill로 필요할 때 읽습니다."""
-    rows = [f"- {n}: {skill_title(n)}" for n in names if (ROOT / "skills" / n / "SKILL.md").exists()]
+    """시스템 프롬프트에는 스킬의 이름과 한 줄 설명만 넣습니다. 본문은 load_skill로 필요할 때 읽습니다.
+    스킬이 다루는 도구(폴더 보기·웹처럼 읽기만 하는 도구는 빼고)를 함께 적어서, 그 도구를 쓰기 전에 읽게 합니다.
+    (실측: "정리 계획 짜줘"에서 스킬을 먼저 읽은 비율 0/3 → 4/4)"""
+    rows = []
+    for n in names:
+        if not (ROOT / "skills" / n / "SKILL.md").exists():
+            continue
+        acts = [t for t in skill_tools(n) if tools.TOOLS[t].get("group") not in READ_ONLY_GROUPS]
+        hint = f" → {' · '.join(acts)} 도구를 쓰기 전에 반드시 먼저 읽기" if acts else ""
+        rows.append(f"- {n}: {skill_title(n)}{hint}")
     if not rows:
         return ""
-    return ("## 쓸 수 있는 스킬\n그 일을 하기 전에 load_skill(name)으로 본문을 먼저 읽고, 읽은 순서대로 일한다.\n"
+    return ("## 쓸 수 있는 스킬\n관련된 일을 하기 전에 load_skill(name)으로 본문을 먼저 읽고, 읽은 순서대로 일한다.\n"
             + "\n".join(rows))
+
+
+READ_ONLY_GROUPS = {"폴더 보기", "웹", "기타"}
 
 
 def load_mcp() -> dict:
