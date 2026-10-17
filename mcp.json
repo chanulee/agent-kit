@@ -1,8 +1,11 @@
 {
   "tavily": {
-    "enabled": false,
+    "enabled": true,
     "url": "https://mcp.tavily.com/mcp/?tavilyApiKey=${TAVILY_API_KEY}",
-    "tools": ["web_search", "web_read"],
+    "tools": [
+      "web_search",
+      "web_read"
+    ],
     "note": "웹 검색 MCP. 켜면 web_search(검색)와 web_read(페이지 읽기)가 생깁니다. 키는 .env의 TAVILY_API_KEY에 넣습니다. 키만 넣거나, Tavily가 준 MCP 주소 전체를 넣어도 됩니다."
   }
 }

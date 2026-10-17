@@ -424,6 +424,39 @@ def test_skill_index_names_the_action_tools_it_covers(kit):
     assert "- plain: 말투 스킬" in core.skill_index(["plain"]) and "쓰기 전에" not in core.skill_index(["plain"])
 
 
+def test_met_search_limit_blocks_after_three_calls(kit, monkeypatch):
+    """met_search 3회 후 네 번째는 막히고, 지금까지 받은 후보가 안내에 포함됩니다."""
+    tools.load_all()
+    hits = []
+
+    def fake_met(query: str) -> str:
+        hits.append(query)
+        return json.dumps([{"objectID": len(hits), "title": query}], ensure_ascii=False)
+
+    monkeypatch.setitem(tools.TOOLS["met_search"], "func", fake_met)
+    eng = core.Engine()
+    agent = {"name": "docent", "retry": 4, "limits": {"met_search": 3}, "no_repeat": True, "ask_before": []}
+    ctx = core.Ctx(eng, agent)
+    fn = ctx.wrap("met_search")
+    for i in range(3):
+        out = fn(query=f"kw{i}")
+        assert "objectID" in out
+    blocked = fn(query="kw-extra")
+    assert blocked.startswith("error:")
+    assert "write_gallery" in blocked
+    assert "kw0" in blocked and "kw2" in blocked
+    assert ctx.counts["met_search"] == 3
+    assert len(hits) == 3
+
+    class Pctx:
+        tool_name = "met_search"
+        arguments = {"query": "again"}
+
+    decision = ctx.policy(Pctx())
+    assert getattr(decision, "allowed", True) is False
+    assert "write_gallery" in decision.reason
+
+
 def test_dashboard_exposes_busy_and_rejects_new_runs(kit):
     from fastapi.testclient import TestClient
     from engine import server

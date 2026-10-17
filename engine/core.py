@@ -305,6 +305,30 @@ class Ctx:
         self.counts: dict = {}
         self.cache: dict = {}
         self.calls = 0
+        self.met_pool: list[str] = []  # met_search 성공 결과(한도 도달 후 write_gallery로 넘기기용)
+
+    def _tool_group(self, name: str) -> str:
+        return "web" if name.startswith("web_") else name
+
+    def _limit_hit(self, name: str) -> bool:
+        group = self._tool_group(name)
+        limit = self.limits.get(group)
+        return limit is not None and self.counts.get(group, 0) >= int(limit)
+
+    def _limit_message(self, name: str, for_policy: bool = False) -> str:
+        group = self._tool_group(name)
+        limit = self.limits.get(group)
+        prefix = "" if for_policy else "error: "
+        if name == "met_search":
+            msg = (f"{prefix}'met_search'는 이번 질문에서 {limit}번까지만 쓸 수 있습니다. "
+                   "더 검색하지 말고, 아래 후보 중 하나를 골라 web_search(가능하면) 후 write_gallery를 호출하세요.")
+            if self.met_pool:
+                msg += "\n지금까지 받은 검색 결과:\n" + "\n---\n".join(self.met_pool)
+            return msg
+        if group == "web":
+            return (f"{prefix}'web_search'·'web_read'는 합쳐서 이번 질문에서 {limit}번까지만 쓸 수 있습니다. "
+                    "웹을 더 쓰지 말고 write_gallery를 호출하세요.")
+        return f"{prefix}'{group}' 도구는 이번 질문에서 {limit}번까지만 쓸 수 있습니다. 가진 정보로 답하세요."
 
     def wrap(self, name: str):
         """도구를 감쌉니다: 멈춤 · 횟수 제한 · 같은 호출 막기 · 오류를 글로."""
@@ -314,15 +338,15 @@ class Ctx:
         def wrapper(**kwargs):
             if self.cancel.is_set():
                 return "error: 사용자가 멈췄습니다. 더 진행하지 말고 지금까지 한 일을 짧게 말하세요."
-            group = "web" if name.startswith("web_") else name
+            group = self._tool_group(name)
             limit = self.limits.get(group)
             key = name + json.dumps(kwargs, sort_keys=True, ensure_ascii=False)
             if self.no_repeat and key in self.cache:
                 self.bus.emit("loop.repeat_blocked", {"tool": name}, self.agent)
                 return "(같은 호출을 이미 했습니다. 다시 실행하지 않았어요. 아래는 그때 결과입니다)\n" + self.cache[key]
-            if limit is not None and self.counts.get(group, 0) >= int(limit):
+            if self._limit_hit(name):
                 self.bus.emit("loop.limit", {"tool": name, "limit": limit}, self.agent)
-                return f"error: '{group}' 도구는 이번 질문에서 {limit}번까지만 쓸 수 있습니다. 가진 정보로 답하세요."
+                return self._limit_message(name)
             self.counts[group] = self.counts.get(group, 0) + 1
             self.calls += 1
             try:
@@ -332,11 +356,17 @@ class Ctx:
                 out = f"error: [{name}] {type(e).__name__}: {redact(str(e))[:300]}"
             if self.no_repeat and not out.startswith("error:"):
                 self.cache[key] = out
+            if name == "met_search" and not out.startswith("error:"):
+                self.met_pool.append(out)
             return out
         return wrapper
 
     def policy(self, pctx):
         """aisuite tool_policy: ask_before에 있는 도구는 화면 버튼을 기다립니다."""
+        if self._limit_hit(pctx.tool_name):
+            group = self._tool_group(pctx.tool_name)
+            self.bus.emit("loop.limit", {"tool": pctx.tool_name, "limit": self.limits.get(group)}, self.agent)
+            return ToolPolicyDecision(allowed=False, reason=self._limit_message(pctx.tool_name, for_policy=True))
         if pctx.tool_name not in self.ask_before:
             return True
         args = dict(pctx.arguments or {})
@@ -537,6 +567,8 @@ class Engine:
                 prompt = ("(팀 2단계 · 갤러리) 앞 에이전트의 결과:\n" + prev[:800]
                           + "\n\n정리된 파일:\n" + files
                           + "\n\n사용자에게 묻지 말고 바로 갤러리를 만드세요. "
+                          "met_search는 이번 실행에서 3번까지만 됩니다. 한도에 닿으면 더 검색하지 말고 "
+                          "이미 받은 후보 중 하나를 골라 web_search(가능하면) 후 write_gallery를 반드시 호출하세요. "
                           "작품의 제목·작가·연도·이미지는 met_search가 준 값만 쓰세요. "
                           "출처는 이번에 웹에서 실제로 받은 주소만 넣으세요. 웹 도구가 꺼져 있으면 출처는 비우세요.")
             prev = self.run_agent(step["name"], prompt, cfg, keep_history=False)
