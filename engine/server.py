@@ -114,7 +114,7 @@ def state() -> dict:
             "keys": {"model": bool(os.environ.get(cfg.get("key_env", "ZAI_API_KEY"))),
                      "web": bool(os.environ.get("TAVILY_API_KEY"))},
             "folder": {"path": str(f), "ok": f.is_dir(),
-                       "files": sum(1 for p in f.rglob("*") if p.is_file() and ".agentkit" not in p.parts) if f.is_dir() else 0,
+                       "files": sum(1 for p in f.rglob("*") if p.is_file() and not (set(p.relative_to(f).parts) & {".agentkit", "_dates.json", ".DS_Store"})) if f.is_dir() else 0,
                        "gallery": (f / "gallery.html").exists()}}
 
 
@@ -253,12 +253,28 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
         src = source_folder(kind, path)
         return {"source": str(src), "items": preview(src)}
 
-    @app.post("/api/folder/copy")
-    async def folder_copy(req: Request):
-        """고른 폴더를 사본으로 복사합니다. 원본은 건드리지 않고, 예전 사본은 지우지 않고 옆으로 옮깁니다."""
+    @app.post("/api/folder/use")
+    async def folder_use(req: Request):
+        """샘플은 직접 쓰고, 개인 폴더는 원본 보호를 위해 사본으로 씁니다."""
+        if eng.busy.locked():
+            raise HTTPException(409, "실행이 끝난 뒤 폴더를 바꿔 주세요.")
         b = await req.json()
         src = source_folder(b.get("kind", "sample"), b.get("path", ""))
-        dest = core.config()["folder_path"]
+        if b.get("kind", "sample") == "sample":
+            # Git은 파일 날짜를 보존하지 않으므로 샘플의 가상 날짜를 적용합니다.
+            dates = json.loads((SAMPLE / "_dates.json").read_text(encoding="utf-8"))
+            for name, date in dates.items():
+                p = src / name
+                if p.is_file():
+                    t = datetime.fromisoformat(date).timestamp()
+                    os.utime(p, (t, t))
+            core.set_yaml(ROOT / "config.yaml", "folder", "sample_downloads")
+            eng.history.clear()
+            import tools
+            tools.STATE.update(folder=src, ids={})
+            eng.bus.emit("state", safe_state())
+            return {"files": state()["folder"]["files"], "dest": str(src), "direct": True}
+        dest = Path.home() / "agent-workshop" / "copy"
         if dest.resolve() == src.resolve() or src.resolve() in dest.resolve().parents:
             raise HTTPException(400, "사본 폴더가 원본 안에 있으면 안 됩니다.")
         if dest.exists() and any(dest.iterdir()):
@@ -266,7 +282,6 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
             old.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(dest), str(old))
         dest.mkdir(parents=True, exist_ok=True)
-        dates = json.loads((SAMPLE / "_dates.json").read_text(encoding="utf-8")) if src == SAMPLE else {}
         chosen = set(b.get("include") or [])
         n, skipped = 0, []
         for p in src.iterdir():
@@ -276,13 +291,13 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
                 except OSError as e:  # Windows: 내려받는 중, 다른 프로그램이 열어 둠, OneDrive에만 있음 → 건너뜀
                     skipped.append(f"{nfc(p.name)} ({type(e).__name__})")
                     continue
-                if p.name in dates:
-                    t = datetime.fromisoformat(dates[p.name]).timestamp()
-                    os.utime(dest / nfc(p.name), (t, t))
                 n += 1
+        core.set_yaml(ROOT / "config.yaml", "folder", str(dest))
         eng.history.clear()
+        import tools
+        tools.STATE.update(folder=dest, ids={})
         eng.bus.emit("state", safe_state())
-        return {"copied": n, "dest": str(dest), "skipped": skipped}
+        return {"copied": n, "dest": str(dest), "skipped": skipped, "direct": False}
 
     @app.post("/api/undo")
     def undo():

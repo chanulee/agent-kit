@@ -1,7 +1,7 @@
 """샘플 다운로드 폴더(sample_downloads/)를 다시 만듭니다. 가상의 디자인 전공생 다운로드 40개.
 
 이름과 내용은 모두 지어낸 것입니다. 실행: uv run scripts/make_samples.py
-git은 파일 날짜를 지키지 않으므로, 날짜는 _dates.json에 적어 두고 사본을 만들 때 입힙니다.
+git은 파일 날짜를 지키지 않으므로, 날짜는 _dates.json에 적어 두고 샘플 폴더를 선택할 때 입힙니다.
 """
 import json
 import sys

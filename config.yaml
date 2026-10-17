@@ -11,5 +11,5 @@ model: "openai:glm-4.5-flash"
 base_url: "https://api.z.ai/api/paas/v4/"
 key_env: ZAI_API_KEY
 
-# 에이전트가 일하는 사본 폴더 (화면의 [📁 폴더 고르기]가 채워 줌. 원본이 아니라 복사본)
-folder: "~/agent-workshop/copy"
+# 에이전트가 일하는 실습 폴더. 샘플은 저장소 안에서 바로 사용합니다.
+folder: "sample_downloads"

@@ -20,7 +20,7 @@ import unicodedata
 from pathlib import Path
 
 TOOLS: dict = {}      # 이름 → {"func", "icon", "needs", "group", "module"}
-STATE = {"folder": None, "ids": {}}  # 사본 폴더(엔진이 넣어 줌), list_files가 붙인 번호표
+STATE = {"folder": None, "ids": {}}  # 실습 폴더(엔진이 넣어 줌), list_files가 붙인 번호표
 
 
 def tool(icon="🔧", needs=None, group="기타"):
@@ -68,12 +68,12 @@ def safe_name(part: str) -> str:
 def folder() -> Path:
     f = STATE["folder"]
     if not f or not Path(f).is_dir():
-        raise FileNotFoundError("사본 폴더가 아직 없습니다. 화면 위 [📁 폴더 고르기]를 먼저 눌러 주세요.")
+        raise FileNotFoundError("실습 폴더가 아직 없습니다. 화면 위 [📁 폴더 고르기]를 먼저 눌러 주세요.")
     return Path(f)
 
 
 def find(rel: str) -> Path:
-    """사본 폴더 안의 파일을 찾습니다. list_files 번호('3', '[3]')도 받고, 한글 NFC/NFD 차이와
+    """실습 폴더 안의 파일을 찾습니다. list_files 번호('3', '[3]')도 받고, 한글 NFC/NFD 차이와
     작은 오타는 무시합니다. 밖으로 나가는 경로는 거부합니다."""
     root = folder().resolve()
     key = str(rel).strip().strip("[]# ")
@@ -83,7 +83,7 @@ def find(rel: str) -> Path:
     while rel.startswith("./"):
         rel = rel[2:]
     if not rel or rel.startswith(("/", "~")) or ".." in rel.split("/") or ":" in rel.split("/")[0]:
-        raise PermissionError(f"사본 폴더 밖 경로는 쓸 수 없습니다: {rel}")
+        raise PermissionError(f"실습 폴더 밖 경로는 쓸 수 없습니다: {rel}")
     cur = root
     for part in rel.split("/"):
         nxt = cur / part
@@ -99,5 +99,5 @@ def find(rel: str) -> Path:
     if not cur.exists():
         raise FileNotFoundError(f"'{rel}'을(를) 찾을 수 없습니다. list_files로 이름을 다시 확인하세요.")
     if root not in cur.resolve().parents and cur.resolve() != root:
-        raise PermissionError("사본 폴더 밖 경로는 쓸 수 없습니다.")
+        raise PermissionError("실습 폴더 밖 경로는 쓸 수 없습니다.")
     return cur

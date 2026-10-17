@@ -50,7 +50,8 @@ def config() -> dict:
     c = read_yaml(ROOT / "config.yaml")
     c.setdefault("agent", "my-agent")
     c.setdefault("team_partner", "docent")
-    c["folder_path"] = Path(os.path.expanduser(c.get("folder", "~/agent-workshop/copy")))
+    folder = Path(os.path.expanduser(c.get("folder", "sample_downloads")))
+    c["folder_path"] = folder if folder.is_absolute() else ROOT / folder
     return c
 
 
@@ -529,7 +530,7 @@ class Engine:
             try:
                 files = ", ".join(p.relative_to(folder).as_posix() for p in tools.files.all_files()) or "(파일 없음)"
             except (FileNotFoundError, OSError):
-                files = "(사본 폴더가 아직 없습니다)"
+                files = "(실습 폴더가 아직 없습니다)"
             if i == 0:
                 prompt = tidy
             else:

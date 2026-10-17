@@ -1,4 +1,4 @@
-"""옮긴 뒤 비어 버린 폴더 정리. 다른 파일이 남은 폴더, 사본 폴더 자체, .agentkit 은 그대로 둡니다."""
+"""옮긴 뒤 비어 버린 폴더 정리. 다른 파일이 남은 폴더, 실습 폴더 자체, .agentkit 은 그대로 둡니다."""
 import sys
 from pathlib import Path
 

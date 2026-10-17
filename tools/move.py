@@ -42,7 +42,7 @@ def _clean_dst(dst: str) -> str:
     dst = nfc(str(dst).strip().replace("\\", "/")).strip("/")
     if not dst or dst.startswith("~") or ".." in dst.split("/") or re.match(r"^[A-Za-z]:", dst) \
             or dst.startswith(".agentkit"):
-        raise PermissionError(f"사본 폴더 밖이나 잘못된 경로입니다: {dst}")
+        raise PermissionError(f"실습 폴더 밖이나 잘못된 경로입니다: {dst}")
     return "/".join(safe_name(p) for p in dst.split("/") if p not in ("", "."))
 
 
@@ -133,7 +133,7 @@ OS_JUNK = {".DS_Store", "Thumbs.db", "desktop.ini"}  # 운영체제가 몰래 �
 
 
 def _prune_empty(start: Path) -> None:
-    """파일을 옮기고 나서 비어 버린 폴더만 정리합니다. 사본 폴더 자체와 .agentkit 은 건드리지 않습니다.
+    """파일을 옮기고 나서 비어 버린 폴더만 정리합니다. 실습 폴더 자체와 .agentkit 은 건드리지 않습니다.
     (팀 실행으로 다시 정리하면 빈 폴더가 여럿 남아 Finder에서 지저분해 보였기 때문)"""
     root = folder().resolve()
     cur = start.resolve()

@@ -82,13 +82,13 @@
 
 <dialog id="dlg-folder"><form method="dialog" style="padding:14px 16px">
   <h3 style="margin-top:0">📁 일할 폴더 고르기</h3>
-  <p style="background:var(--yellow);padding:6px 9px;border-radius:8px">원본은 그대로 두고 <b>사본</b>을 만듭니다. 파일 <b>이름과 앞부분</b>은 AI 서버로 갑니다. 싫은 파일은 체크를 빼세요.</p>
+  <p style="background:var(--yellow);padding:6px 9px;border-radius:8px">샘플은 <b>그 폴더에서 바로 실습</b>합니다. 개인 폴더는 원본 보호를 위해 사본을 만듭니다. 파일 <b>이름과 앞부분</b>은 AI 서버로 갑니다. 개인 폴더에서는 싫은 파일의 체크를 빼세요.</p>
   <label><input type="radio" name="kind" value="sample" checked> 샘플 폴더 (가상의 학생 다운로드)</label><br>
   <label><input type="radio" name="kind" value="downloads"> 내 다운로드 폴더</label><br>
   <label><input type="radio" name="kind" value="path"> 폴더 경로 붙여 넣기 (Finder에서 폴더를 끌어다 놓아도 됨)</label>
   <input id="folder-path" style="width:100%;margin:4px 0" placeholder="/Users/나/Desktop/레퍼런스">
   <div class="files" id="folder-list"></div>
-  <p style="text-align:right"><span id="folder-count" class="muted"></span> <button value="cancel">취소</button> <button class="primary" id="folder-go">사본 만들기</button></p>
+  <p style="text-align:right"><span id="folder-count" class="muted"></span> <button value="cancel">취소</button> <button class="primary" id="folder-go">이 폴더 사용</button></p>
 </form></dialog>
 <dialog id="dlg-file"><form method="dialog" style="padding:14px 16px"><h3 id="file-title" style="margin-top:0"></h3>
   <p class="muted">이 파일을 직접(또는 Cursor로) 고쳐도 몇 초 안에 화면이 따라옵니다.</p><pre id="file-text"></pre><p style="text-align:right"><button class="primary">닫기</button></p></form></dialog>
@@ -102,7 +102,7 @@ let busy = false;
 let S = null, editAgent = null, turn = null, section = null, totals = { turns: 0, tokens: 0, tools: 0 }, t0 = 0;
 const GROUPS = ["폴더 보기", "정리", "파일 쓰기", "웹", "미술관 API", "기타"];
 const HINTS = {
-  "폴더 보기": "2단계. 켜면 폴더 사본을 살펴봅니다.",
+  "폴더 보기": "2단계. 켜면 실습 폴더를 살펴봅니다.",
   "정리": "3~4단계. propose_plan은 계획만, move_files가 옮깁니다. 옮기기 옆 ✋을 켜면 승인을 받습니다.",
   "파일 쓰기": "5단계. write_file 옆 ✋을 켜면, 쓸 내용이 승인 카드에 먼저 나옵니다.",
   "웹": "5단계. 아래 MCP를 켜면 검색·읽기 도구가 나타납니다.",
@@ -137,7 +137,7 @@ function render() {
   $("#chips").innerHTML = `<span class="chip">${S.keys.model ? "✅" : "❌"} 모델 ${esc((S.model || "").split(":").pop())} ${S.keys.model ? "키 있음" : "키 없음"}</span>
     <span class="chip">${S.keys.web ? "✅" : "❌"} Tavily 키 ${S.keys.web ? "있음" : "없음"}</span>
     <span class="chip">${webOn ? "✅" : "⏸"} 웹 검색 ${webOn ? "켜짐" : "꺼짐"}</span>
-    <span class="chip">${f.ok ? "✅ 사본 " + f.files + "개" : "❌ 사본 없음"}</span>`;
+    <span class="chip">${f.ok ? "✅ 실습 폴더 " + f.files + "개" : "❌ 실습 폴더 없음"}</span>`;
   if (!editAgent || !S.agents[editAgent]) editAgent = S.agent;
   renderParts();
 }
@@ -374,6 +374,12 @@ async function loadFolder() {
   $("#folder-list").innerHTML = "<p class='muted'>읽는 중…</p>";
   try {
     const d = await api(`/api/folder/preview?kind=${kind}&path=${encodeURIComponent(path)}`);
+    $("#folder-go").textContent = kind === "sample" ? "이 폴더 사용" : "사본 만들기";
+    if (kind === "sample") {
+      $("#folder-list").innerHTML = `<p class="muted">실습 폴더: ${esc(d.source)}</p><p>파일 이동·노트·갤러리는 이 폴더에 바로 반영됩니다. 다시 선택해도 초기화되지 않습니다.</p>`;
+      $("#folder-count").textContent = "";
+      return;
+    }
     $("#folder-list").innerHTML = `<p class="muted">원본: ${esc(d.source)}</p>` + d.items.map((it) =>
       `<label style="display:block"><input type="checkbox" value="${esc(it.name)}" ${it.skip ? "" : "checked"}> ${esc(it.name)} <span class="muted">${it.kb}KB</span> ${it.skip ? `<span style="color:var(--red)">빠짐: ${esc(it.skip)}</span>` : ""}</label>`).join("");
     const count = () => $("#folder-count").textContent = document.querySelectorAll("#folder-list input:checked").length + "개 선택 (최대 60)";
@@ -386,8 +392,8 @@ $("#folder-path").onchange = () => { document.querySelector("input[value=path]")
 $("#folder-go").onclick = async (ev) => {
   ev.preventDefault();
   const include = [...document.querySelectorAll("#folder-list input:checked")].map((i) => i.value);
-  try { const r = await api("/api/folder/copy", { kind: document.querySelector("input[name=kind]:checked").value, path: $("#folder-path").value, include });
-    $("#dlg-folder").close(); say("ai", `📁 사본을 만들었어요: ${r.copied}개 → ${r.dest}` + ((r.skipped || []).length ? `\n복사하지 못해 건너뛴 파일 ${r.skipped.length}개 (다른 프로그램이 열어 두었거나 내려받는 중): ${r.skipped.slice(0, 5).join(", ")}` : "")); } catch (e) { alert(e.message); }
+  try { const r = await api("/api/folder/use", { kind: document.querySelector("input[name=kind]:checked").value, path: $("#folder-path").value, include });
+    $("#dlg-folder").close(); say("ai", (r.direct ? `📁 실습 폴더를 사용합니다: ${r.files}개 → ${r.dest}` : `📁 사본을 만들었어요: ${r.copied}개 → ${r.dest}`) + ((r.skipped || []).length ? `\n복사하지 못해 건너뛴 파일 ${r.skipped.length}개 (다른 프로그램이 열어 두었거나 내려받는 중): ${r.skipped.slice(0, 5).join(", ")}` : "")); } catch (e) { alert(e.message); }
 };
 
 $("#composer").onsubmit = (e) => { e.preventDefault(); const t = $("#input").value.trim(); if (t && !busy) send(t); };

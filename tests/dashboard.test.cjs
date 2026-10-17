@@ -73,3 +73,18 @@ test('destination labels and values escape filenames supplied by the model', () 
   assert.ok(options.includes('&quot;'));
   assert.equal(options.includes('value="<'), false);
 });
+
+test('sample selection offers direct use without copy checkboxes', async () => {
+  const d = dashboard();
+  d.get('input[name=kind]:checked').value = 'sample';
+  d.run(`api = async () => ({source:'/kit/sample_downloads', items:[{name:'sample.txt', kb:1, skip:''}]})`);
+  await d.run('loadFolder()');
+  assert.equal(d.get('#folder-go').textContent, '이 폴더 사용');
+  assert.ok(d.get('#folder-list').innerHTML.includes('/kit/sample_downloads'));
+  assert.equal(d.get('#folder-list').innerHTML.includes('checkbox'), false);
+  assert.equal(d.get('#folder-count').textContent, '');
+  d.get('input[name=kind]:checked').value = 'downloads';
+  await d.run('loadFolder()');
+  assert.equal(d.get('#folder-go').textContent, '사본 만들기');
+  assert.ok(d.get('#folder-list').innerHTML.includes('checkbox'));
+});

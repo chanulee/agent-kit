@@ -39,7 +39,7 @@ def kit(tmp_path, monkeypatch):
         shutil.copytree(REPO / d, root / d)
     folder = tmp_path / "copy"
     (root / "config.yaml").write_text((REPO / "config.yaml").read_text(encoding="utf-8")
-                                      .replace("~/agent-workshop/copy", folder.as_posix()), encoding="utf-8")
+                                      .replace('folder: "sample_downloads"', f'folder: "{folder.as_posix()}"'), encoding="utf-8")
     shutil.copy(REPO / "mcp.json", root / "mcp.json")
     monkeypatch.setattr(core, "ROOT", root)
     for k in core.KEYS:
@@ -217,7 +217,7 @@ def test_missing_key_is_a_clear_card(kit, monkeypatch):
     assert "[준비]" in out and ".env" in out
 
 
-def test_dashboard_toggle_writes_file_and_folder_copy(kit, monkeypatch):
+def test_dashboard_toggle_writes_file_and_uses_sample_directly(kit, monkeypatch):
     from fastapi.testclient import TestClient
     from engine import server
     root, folder = kit
@@ -231,11 +231,24 @@ def test_dashboard_toggle_writes_file_and_folder_copy(kit, monkeypatch):
     c.post("/api/set", json={"target": "agent:my-agent", "key": "max_turns", "value": 3})
     text = (root / "agents/my-agent/agent.yaml").read_text(encoding="utf-8")
     assert "max_turns: 3" in text and "# ── 루프 조절 ──" in text          # 주석 유지
-    pv = c.get("/api/folder/preview?kind=sample").json()["items"]
-    assert any(i["skip"] for i in pv if i["name"].startswith("통장"))         # 민감 파일은 기본 제외
-    keep = [i["name"] for i in pv if not i["skip"]]
-    r = c.post("/api/folder/copy", json={"kind": "sample", "include": keep}).json()
-    assert r["copied"] == len(keep) and not (folder / "통장사본_스캔.jpg").exists()
+    sample = root / "sample_downloads"
+    before = {p.relative_to(sample): p.read_bytes() for p in sample.rglob("*") if p.is_file()}
+    tools.STATE["ids"] = {"1": "old.txt"}
+    eng = c.app.state.engine
+    eng.history["my-agent"] = ["old conversation"]
+    eng.busy.acquire()
+    assert c.post("/api/folder/use", json={"kind": "sample"}).status_code == 409
+    eng.busy.release()
+    r = c.post("/api/folder/use", json={"kind": "sample"}).json()
+    assert r["direct"] is True and r["dest"] == str(sample) and r["files"] == 40
+    assert core.config()["folder_path"] == sample
+    assert tools.STATE["folder"] == sample and tools.STATE["ids"] == {} and not eng.history
+    assert {p.relative_to(sample): p.read_bytes() for p in sample.rglob("*") if p.is_file()} == before
+    (sample / "리서치").mkdir()
+    (sample / "리서치/노트.md").write_text("keep me")
+    c.post("/api/folder/use", json={"kind": "sample"})
+    assert (sample / "리서치/노트.md").read_text() == "keep me"
+    assert not (root / "old").exists()
     assert c.post("/api/set", json={"target": "config", "key": "agent", "value": "docent"},
                   headers={"origin": "https://evil.com"}).status_code == 403
     turned = c.post("/api/mcp", json={"name": "tavily", "enabled": True, "agent": "my-agent"})
@@ -243,6 +256,32 @@ def test_dashboard_toggle_writes_file_and_folder_copy(kit, monkeypatch):
     saved = json.loads((root / "mcp.json").read_text(encoding="utf-8"))
     assert saved["tavily"]["enabled"] is True
     assert "web_search" in (root / "agents/my-agent/agent.yaml").read_text(encoding="utf-8")
+
+
+def test_personal_folder_still_copies_only_selected_files(kit, monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from engine import server
+    root, _ = kit
+    monkeypatch.setattr(server, "ROOT", root)
+    monkeypatch.setattr(server, "SAMPLE", root / "sample_downloads")
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    c = TestClient(server.create_app(core.Engine()))
+    # Start in the sample so copying a personal folder cannot replace it.
+    c.post("/api/folder/use", json={"kind": "sample"})
+    personal = tmp_path / "personal"
+    personal.mkdir()
+    (personal / "note.txt").write_text("original")
+    (personal / "통장.txt").write_text("private")
+    items = c.get("/api/folder/preview", params={"kind": "path", "path": str(personal)}).json()["items"]
+    assert any(i["skip"] for i in items if i["name"] == "통장.txt")
+    selected = [i["name"] for i in items if not i["skip"]]
+    r = c.post("/api/folder/use", json={"kind": "path", "path": str(personal), "include": selected}).json()
+    dest = tmp_path / "agent-workshop/copy"
+    assert r["direct"] is False and r["copied"] == 1
+    assert core.config()["folder_path"] == dest
+    assert (dest / "note.txt").read_text() == "original" and not (dest / "통장.txt").exists()
+    assert (personal / "통장.txt").read_text() == "private"
+    assert (root / "sample_downloads/todo.md").is_file()
 
 
 def test_write_file_approval_shows_preview(kit, monkeypatch):

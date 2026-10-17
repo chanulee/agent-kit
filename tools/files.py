@@ -1,4 +1,4 @@
-"""파일 보기 도구: 사본 폴더 안에서만, 읽기만 합니다. 엿보기는 앞 500자, 이미지는 크기만."""
+"""파일 보기 도구: 실습 폴더 안에서만, 읽기만 합니다. 엿보기는 앞 500자, 이미지는 크기만."""
 from collections import Counter
 from datetime import datetime
 
@@ -22,7 +22,7 @@ def all_files():
 
 @tool("📂", group="폴더 보기")
 def list_files() -> str:
-    """List files in the copy folder, one per line: [ID] path | size | modified date. You can pass the ID number to other tools."""
+    """List files in the practice folder, one per line: [ID] path | size | modified date. You can pass the ID number to other tools."""
     from tools import STATE
     root, files = folder(), all_files()
     STATE["ids"] = {str(i): nfc(p.relative_to(root).as_posix()) for i, p in enumerate(files[:60], 1)}

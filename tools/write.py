@@ -1,15 +1,15 @@
-"""파일 쓰기 도구: 사본 폴더 안에 마크다운 노트만 새로 만듭니다. 지우거나 덮어쓰지 않습니다."""
+"""파일 쓰기 도구: 실습 폴더 안에 마크다운 노트만 새로 만듭니다. 지우거나 덮어쓰지 않습니다."""
 from tools import folder, nfc, safe_name, tool
 
 
 def _new_md(rel: str):
-    """만들 .md 경로. 사본 밖, 덮어쓰기, 마크다운이 아닌 파일은 거절합니다."""
+    """만들 .md 경로. 실습 폴더 밖, 덮어쓰기, 마크다운이 아닌 파일은 거절합니다."""
     root = folder().resolve()
     rel = nfc(str(rel).strip().replace("\\", "/"))
     while rel.startswith("./"):
         rel = rel[2:]
     if not rel or rel.startswith(("/", "~")) or ".." in rel.split("/") or ":" in rel.split("/")[0]:
-        raise PermissionError(f"사본 폴더 밖 경로는 쓸 수 없습니다: {rel}")
+        raise PermissionError(f"실습 폴더 밖 경로는 쓸 수 없습니다: {rel}")
     if not rel.lower().endswith(".md"):
         raise PermissionError("마크다운(.md) 파일만 만들 수 있습니다.")
     if rel.startswith(".agentkit") or "/.agentkit" in rel:
@@ -17,13 +17,13 @@ def _new_md(rel: str):
     rel = "/".join(safe_name(p) for p in rel.split("/") if p not in ("", "."))  # Windows에서 못 쓰는 글자 정리
     dest = (root / rel).resolve()
     if root not in dest.parents:
-        raise PermissionError("사본 폴더 밖 경로는 쓸 수 없습니다.")
+        raise PermissionError("실습 폴더 밖 경로는 쓸 수 없습니다.")
     return dest
 
 
 @tool("✍️", group="파일 쓰기")
 def write_file(path: str, content: str) -> str:
-    """Create a new markdown file inside the copy folder. Refuses to overwrite or leave the folder.
+    """Create a new markdown file inside the practice folder. Refuses to overwrite or leave the folder.
 
     Args:
         path: relative path ending in .md, e.g. '리서치/노트.md'
