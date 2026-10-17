@@ -16,14 +16,14 @@
 2. **Terminal → New Terminal**로 터미널을 열고 uv를 설치합니다. 설치가 끝나면 터미널을 닫았다가 새로 엽니다.
    - Mac: `curl -LsSf https://astral.sh/uv/install.sh | sh`
    - Windows: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
-3. 키 두 개를 받습니다. 한 사람이 하나씩 받아야 합니다(Z.ai 키 하나는 동시에 2~3개 요청까지만 받습니다).
+3. 키 두 개를 받습니다. 각자 자기 키를 사용하고 서비스 화면에서 사용량 조건을 확인합니다.
    - Z.ai: https://z.ai/model-api 에서 가입하고, https://z.ai/manage-apikey/apikey-list 에서 키를 만듭니다.
    - Tavily: https://app.tavily.com/home 에서 가입하고 `tvly-`로 시작하는 키를 복사합니다.
 4. `cp .env.example .env`(Windows는 `copy .env.example .env`)로 `.env`를 만들고, `=` 뒤에 키를 붙여 넣습니다.
    - `ZAI_API_KEY`: Z.ai 키
    - `TAVILY_API_KEY`: Tavily 키. 키만 넣는 것을 권하고, Tavily MCP 주소(`https://mcp.tavily.com/mcp/?tavilyApiKey=...`) 전체를 넣어도 됩니다.
-5. `uv run app.py`로 켭니다. 처음 한 번은 1~2분 걸립니다. 브라우저에 대시보드가 열리고, 위쪽에 "모델 ... 연결됨", "Tavily 키 있음"이 보이면 준비가 된 것입니다.
-6. 화면 위쪽의 **폴더 고르기**에서 샘플 폴더나 내 폴더를 고르고 **사본 만들기**를 누릅니다. 에이전트는 이 사본에서만 일하고, 원본은 바뀌지 않습니다.
+5. `uv run app.py`로 켭니다. 처음 한 번은 1~2분 걸립니다. 브라우저에 대시보드가 열리고, 위쪽의 "모델 ... 키 있음", "Tavily 키 있음"을 확인하고 대화창에 "안녕"을 보내 실제 답이 오는지 확인합니다. 키 표시는 인증 성공을 뜻하지 않습니다.
+6. 공통 실습에서는 개인 다운로드를 쓰지 않습니다. 화면 위쪽의 **폴더 고르기 → 샘플 폴더 → 사본 만들기**를 누릅니다. 에이전트는 이 사본(실습 폴더)에서만 일합니다. 샘플 원본을 보존하므로 언제든 같은 시작 상태로 다시 만들 수 있습니다.
    - 사본 위치: Mac `~/agent-workshop/copy`, Windows `C:\Users\내이름\agent-workshop\copy`
 
 끌 때는 터미널에서 Ctrl+C를 누릅니다.
@@ -36,7 +36,9 @@
 | 루프 (가운데) | 에이전트가 하는 행동입니다. 턴마다 생각, 도구, 결과가 한 장씩 쌓입니다. 팀 실행에서는 에이전트마다 칸이 나뉘고, 그 사이에 넘겨주기가 보입니다 |
 | 부품 (오른쪽) | 도구, 스킬, MCP, 승인, 루프 조절을 켜고 끄는 곳입니다. 체크하면 `agents/my-agent/agent.yaml`이나 `mcp.json`의 한 줄이 바뀝니다. 파일을 직접 고쳐도 몇 초 안에 화면이 따라 바뀝니다 |
 
-위쪽의 **팀 실행** 버튼은 6단계에서 씁니다. 나의 에이전트가 먼저 폴더를 정리하고, 미리 만들어 둔 도슨트가 이어서 갤러리를 만듭니다.
+실행·재시도·승인 대기 중에는 새 메시지 전송과 팀 실행이 막힙니다. 승인 카드는 계속 조작할 수 있습니다. 계획표의 ✏️는 목적지 폴더를 드롭다운으로 선택하며 파일 이름을 유지합니다.
+
+위쪽의 **팀 실행** 버튼은 6단계에서 씁니다. 입력창에 요청을 적고 보내기 대신 팀 실행을 누릅니다. 나의 에이전트가 먼저 폴더를 정리하고, 미리 만들어 둔 도슨트가 이어서 갤러리를 만듭니다.
 
 ## 단계 요약
 
@@ -44,10 +46,12 @@
 |---|---|---|---|
 | 1 | 성격 | `persona.md`의 "성격·말버릇" 칸 고치기 | 내 폴더에 뭐가 있어? |
 | 2 | 도구 | `list_files`, `peek_file`, `file_info` | 내 폴더를 보고 주인이 어떤 사람인지 추리해 줘. |
-| 3 | 스킬 | `propose_plan`, 스킬 `curator` | 이 폴더를 정리할 계획을 세워 줘. |
+| 3 | 스킬 | `propose_plan`, 스킬 `curator` | 이 폴더를 정리할 계획을 세우고 저장해 줘. |
 | 4 | 승인 | `move_files`와 그 옆 승인 칸 | 계획대로 옮겨 줘. |
 | 5 | MCP | MCP의 Tavily, `web_search`, `web_read`, `write_file`과 승인 칸, 스킬 `research-note` | 요즘 타이포그래피 포스터 트렌드를 찾아서 리서치 노트로 남겨 줘. |
-| 6 | API와 팀 | 팀 실행 버튼 | 내 다운로드 폴더 전시회를 열어 줘. |
+| 6 | API와 팀 | 팀 실행 버튼 | 이 샘플 폴더를 정리하고, 어울리는 미술관 작품으로 전시회를 열어 줘. |
+
+GUIDE.md 각 단계에는 성공 확인과 접힌 Cursor 도움말·오류 질문 예시가 있습니다. 5단계 뒤에는 도구·스킬·MCP를 비교하는 5분 정리 시간이 있습니다.
 
 단계별로 `agent.yaml`에 쌓이는 모습은 다음과 같습니다.
 
@@ -94,7 +98,7 @@ skills/research-note/SKILL.md   리서치 노트의 구성(한 줄 요약, 핵�
 
 engine/                     루프, 승인, 화면을 담당합니다. 수업 중에는 고치지 않습니다
 sample_downloads/           연습용으로 만들어 둔 가상의 다운로드 폴더
-tests/                      키 없이 도는 시험입니다. `uv run pytest`
+tests/                      키 없이 도는 Python 시험: `uv run pytest`. 화면 로직: `node --test tests/dashboard.test.cjs`
 docs/                       수업 설계 메모입니다
 prototype/                  키트를 만들기 전에 돌렸던 기술 확인 스크립트
 ```
@@ -149,7 +153,7 @@ def get_weather(city: str) -> str:
 
 | 항목 | 상태 |
 |---|---|
-| 시험 | 키 없이 `uv run pytest`로 도는 시험이 통과합니다 |
+| 시험 | Python: `uv run pytest` / 화면 로직(Node.js 사용 가능 시): `node --test tests/dashboard.test.cjs` |
 | 실제 실행 | Mac에서 Z.ai(GLM-4.5-Flash), Tavily, 미술관 API로 1단계부터 6단계까지 끝까지 돌려 보았습니다 |
 | 걸리는 시간(실측) | 2단계 30~60초, 3단계 계획 30~90초(파일 39개), 4단계 거절 4초와 승인 17초, 5단계 50~90초, 팀 실행 80초 안팎 |
 | 확인하지 못한 것 | Windows에서의 실제 실행, 16명이 같은 와이파이에서 동시에 쓰는 상황, Z.ai와 Tavily 가입 화면의 정확한 메뉴 이름 |

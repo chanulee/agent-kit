@@ -137,7 +137,7 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
 
     def safe_state():
         try:
-            return state()
+            return {**state(), "busy": eng.busy.locked()}
         except Exception as e:  # noqa: BLE001
             return {"error": f"설정 파일을 읽을 수 없습니다: {e}. 들여쓰기·콜론(:)을 확인하세요."}
 
@@ -304,6 +304,7 @@ def create_app(engine: core.Engine | None = None) -> FastAPI:
 
         async def stream():
             try:
+                yield f"data: {json.dumps({'event_type': 'state', 'data': safe_state()}, ensure_ascii=False)}\n\n"
                 for aid, box in list(eng.pending.items()):  # 새로고침해도 승인 카드가 다시 뜸
                     yield f"data: {json.dumps({'event_type': 'approval.requested', 'agent': '', 'data': {'id': aid, **box['view']}}, ensure_ascii=False)}\n\n"
                 while not await request.is_disconnected():

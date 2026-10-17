@@ -71,7 +71,7 @@
   <section><h3>💬 대화 <small class="muted">에이전트의 말</small></h3>
     <div class="scroll" id="chat"></div>
     <form id="composer"><textarea id="input" rows="2" placeholder="말을 걸어 보세요 (Enter 보내기). 도구를 켜야 폴더를 볼 수 있어요."></textarea>
-      <div style="display:flex;flex-direction:column;gap:4px"><button class="primary">보내기</button><button type="button" id="btn-stop">⏹ 멈춤</button><button type="button" id="btn-new">새 대화</button></div></form>
+      <div style="display:flex;flex-direction:column;gap:4px"><button id="btn-send" class="primary">보내기</button><button type="button" id="btn-stop" disabled>⏹ 멈춤</button><button type="button" id="btn-new">새 대화</button></div></form>
   </section>
   <section><h3>🔁 루프 <small class="muted">에이전트의 행동</small><span id="totals" class="muted"></span></h3>
     <div class="scroll" id="loop"><p class="muted">여기에 루프가 한 바퀴씩 쌓입니다: 🧠 생각 → 🔧 도구 → 결과 → 다시 🧠</p></div>
@@ -98,6 +98,7 @@
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const pretty = (v) => { try { return JSON.stringify(typeof v === "string" ? JSON.parse(v) : v, null, 2); } catch { return String(v); } };
+let busy = false;
 let S = null, editAgent = null, turn = null, section = null, totals = { turns: 0, tokens: 0, tools: 0 }, t0 = 0;
 const GROUPS = ["폴더 보기", "정리", "파일 쓰기", "웹", "미술관 API", "기타"];
 const HINTS = {
@@ -117,11 +118,23 @@ async function api(path, body) {
 }
 const set = (target, key, value) => api("/api/set", { target, key, value }).then((d) => { S = d.state; render(); }).catch((e) => errCard({ stage: "설정", what: e.message, todo: "값을 확인하세요" }));
 
+function setBusy(value) {
+  busy = value;
+  $("#composer").setAttribute("aria-busy", String(value));
+  $("#input").setAttribute("aria-label", value ? "실행 중 — 다음 메시지를 적을 수 있지만 전송은 완료 후 가능합니다" : "에이전트에게 보낼 메시지");
+  $("#btn-send").disabled = value;
+  $("#btn-send").textContent = value ? "⏳ 실행 중…" : "보내기";
+  ["#btn-team", "#btn-new", "#btn-folder", "#btn-undo"].forEach((id) => $(id).disabled = value);
+  $("#btn-stop").disabled = !value;
+  document.querySelectorAll(".retry").forEach((b) => b.disabled = value);
+}
+
 function render() {
   if (!S) return;
   if (S.error) { status("❌ " + S.error, "err"); return; }
+  setBusy(!!S.busy);
   const f = S.folder, webOn = !!(S.mcp && S.mcp.tavily && S.mcp.tavily.enabled);
-  $("#chips").innerHTML = `<span class="chip">${S.keys.model ? "✅" : "❌"} 모델 ${esc((S.model || "").split(":").pop())} ${S.keys.model ? "연결됨" : "키 없음"}</span>
+  $("#chips").innerHTML = `<span class="chip">${S.keys.model ? "✅" : "❌"} 모델 ${esc((S.model || "").split(":").pop())} ${S.keys.model ? "키 있음" : "키 없음"}</span>
     <span class="chip">${S.keys.web ? "✅" : "❌"} Tavily 키 ${S.keys.web ? "있음" : "없음"}</span>
     <span class="chip">${webOn ? "✅" : "⏸"} 웹 검색 ${webOn ? "켜짐" : "꺼짐"}</span>
     <span class="chip">${f.ok ? "✅ 사본 " + f.files + "개" : "❌ 사본 없음"}</span>`;
@@ -204,16 +217,24 @@ function errCard(c) {
     ${c.raw ? `<details><summary>자세히 (원문 오류)</summary><pre>${esc(c.raw)}</pre></details>` : ""}
     <div style="margin-top:4px"><button class="retry">↻ 다시 시도</button></div>`;
   d.querySelector(".retry").onclick = () => lastText && send(lastText);
+  d.querySelector(".retry").disabled = busy;
   $("#chat").append(d); d.scrollIntoView({ block: "end" });
+}
+function destinationOptions(items, item) {
+  const dir = (path) => path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
+  const folders = new Set(["", "이미지/", "이미지/스크린샷/", "수업/", "돈/", "기타/", "레퍼런스/", "리서치/",
+    ...items.map((it) => dir(it.dst)), ...items.map((it) => dir(it.src))]);
+  const name = item.dst.split("/").pop();
+  return [...folders].map((folder) => `<option value="${esc(folder + name)}" ${folder === dir(item.dst) ? "selected" : ""}>${esc(folder || "실습 폴더 최상위")}</option>`).join("");
 }
 function approvalCard(v) {
   const d = document.createElement("div"); d.className = "card"; d.id = "ap-" + v.id;
   if (v.plan) {
     const pick = {}; v.plan.items.forEach((it) => pick[it.id] = { action: it.status === "rejected" ? "reject" : "approve" });
-    d.innerHTML = `<b>✋ 계획표 심사 · v${v.plan.version} · ${v.plan.items.length}개</b><br><span class="muted">기본은 전부 ✅. 빼고 싶으면 ❌, 고치려면 ✏️. 노란 줄 = 지난 버전에서 바뀜</span>
+    d.innerHTML = `<b>✋ 계획표 심사 · v${v.plan.version} · ${v.plan.items.length}개</b><br><span class="muted">기본은 전부 ✅. 빼고 싶으면 ❌, 목적지 선택은 ✏️. 노란 줄 = 지난 버전에서 바뀜</span>
       <div class="plan">${v.plan.items.map((it) =>
         `<div class="row ${it.changed ? "changed" : ""}" data-id="${it.id}"><span class="pick"><button type="button" data-a="approve">✅</button><button type="button" data-a="reject">❌</button><button type="button" data-a="edit">✏️</button></span>
-         <span class="what">${it.id}. ${esc(it.src)}<br>→ <b class="dst">${esc(it.dst)}</b> ${it.reason ? `<small>· ${esc(it.reason)}</small>` : ""}</span></div>`).join("")}</div>
+         <span class="what">${it.id}. ${esc(it.src)}<br>→ <b class="dst">${esc(it.dst)}</b><br><select class="destination hidden" aria-label="${esc(it.src)} 목적지">${destinationOptions(v.plan.items, it)}</select> ${it.reason ? `<small>· ${esc(it.reason)}</small>` : ""}</span></div>`).join("")}</div>
       <input class="note-in" style="width:100%;margin-top:6px" placeholder="💬 한마디 (예: 스크린샷은 다 한 방에) — 쓰면 계획을 다시 짭니다">
       <div style="text-align:right;margin-top:4px"><button type="button" class="no">전체 취소</button> <button type="button" class="primary yes">보내기</button></div>`;
     const paint = () => d.querySelectorAll(".row[data-id]").forEach((tr) => {
@@ -221,9 +242,16 @@ function approvalCard(v) {
       tr.querySelectorAll(".pick button").forEach((b) => b.classList.toggle("on", b.dataset.a === p.action)); });
     d.querySelectorAll(".row[data-id]").forEach((tr) => tr.querySelectorAll(".pick button").forEach((b) => b.onclick = () => {
       const id = tr.dataset.id;
-      if (b.dataset.a === "edit") { const nv = prompt("새 위치 (폴더/이름)", tr.querySelector(".dst").textContent); if (!nv) return; pick[id] = { action: "edit", dst: nv }; tr.querySelector(".dst").textContent = nv; }
+      if (b.dataset.a === "edit") { const menu = tr.querySelector(".destination"); menu.classList.remove("hidden"); menu.focus(); return; }
       else pick[id] = { action: b.dataset.a };
       paint(); }));
+    d.querySelectorAll(".row[data-id]").forEach((tr) => {
+      tr.querySelector(".destination").onchange = (e) => {
+        pick[tr.dataset.id] = { action: "edit", dst: e.target.value };
+        tr.querySelector(".dst").textContent = e.target.value;
+        paint();
+      };
+    });
     paint();
     d.querySelector(".yes").onclick = () => decide(v.id, { action: "submit", items: pick, comment: d.querySelector(".note-in").value });
     d.querySelector(".no").onclick = () => decide(v.id, { action: "deny", comment: d.querySelector(".note-in").value });
@@ -246,8 +274,16 @@ function approvalCard(v) {
 const decide = (id, ans) => api("/api/approve/" + id, ans).catch((e) => alert(e.message));
 let lastText = "";
 async function send(text) {
+  if (busy) return;
+  setBusy(true);
+  status("⏳ 요청 중…");
   lastText = text;
-  try { await api("/api/chat", { text }); $("#input").value = ""; } catch (e) { errCard({ stage: "보내기", what: e.message, todo: "잠시 뒤 다시" }); }
+  try { await api("/api/chat", { text }); $("#input").value = ""; }
+  catch (e) { await syncBusy(); errCard({ stage: "보내기", what: e.message, todo: "잠시 뒤 다시" }); }
+}
+async function syncBusy() {
+  try { const s = await api("/api/state"); setBusy(!!s.busy); }
+  catch { setBusy(true); status("❌ 연결 상태를 확인할 수 없습니다. 서버를 확인하고 새로고침하세요.", "err"); }
 }
 
 function loopHost() { return section || $("#loop"); }
@@ -275,7 +311,7 @@ function onEvent(e) {
   $("#log").textContent += JSON.stringify(e) + "\n";
   switch (e.event_type) {
     case "state": S = d; render(); break;
-    case "chat.user": t0 = Date.now(); totals = { turns: 0, tokens: 0, tools: 0 }; $("#loop").innerHTML = ""; turn = null; section = null;
+    case "chat.user": setBusy(true); t0 = Date.now(); totals = { turns: 0, tokens: 0, tools: 0 }; $("#loop").innerHTML = ""; turn = null; section = null;
       say("me", d.text); status(`🧠 ${d.mode || "대화"} 시작…`); break;
     case "team.start": {
       const bar = document.createElement("div"); bar.className = "pipeline"; bar.id = "pipeline";
@@ -311,8 +347,8 @@ function onEvent(e) {
     case "loop.limit": step(`⛔ ${esc(d.tool)} 한도 ${d.limit}번 도달 <span class="muted">(루프 조절)</span>`, "warn"); break;
     case "retry.waiting": note(`⏳ 서버가 바쁨(${d.code}) → ${d.wait_s}초 기다렸다 다시 (${d.attempt}/${d.max})`, "warn");
       status(`⏳ ${d.wait_s}초 기다리는 중 (재시도 ${d.attempt}/${d.max}) — 고장 아님, 서버 한도`, "wait"); break;
-    case "approval.requested": approvalCard(d); note(`✋ 사람 승인 기다리는 중: ${esc(d.tool)}`, "warn"); status("✋ 승인 대기 — 왼쪽 카드에서 골라 주세요", "wait"); break;
-    case "approval.resolved": { const c = $("#ap-" + d.id); if (c) { c.className = "card ok"; c.querySelectorAll("button,input").forEach((b) => b.disabled = true); }
+    case "approval.requested": setBusy(true); approvalCard(d); note(`✋ 사람 승인 기다리는 중: ${esc(d.tool)}`, "warn"); status("✋ 승인 대기 — 왼쪽 카드에서 골라 주세요", "wait"); break;
+    case "approval.resolved": { const c = $("#ap-" + d.id); if (c) { c.className = "card ok"; c.querySelectorAll("button,input,select").forEach((b) => b.disabled = true); }
       const a = d.answer || {}; note(`✋ 결정: ${a.action === "approve" ? "✅ 승인" : a.action === "deny" ? "❌ 거절" : "항목별 심사"}${a.comment ? " 💬 " + esc(a.comment) : ""}`); break; }
     case "agent.handoff": {
       const box = document.createElement("div"); box.className = "handoff";
@@ -326,7 +362,7 @@ function onEvent(e) {
     case "warn.says_but_no_action": note("⚠️ " + esc(d.text), "warn"); say("ai", "⚠️ " + d.text); break;
     case "error.card": errCard(d); note(`❌ [${esc(d.stage)}] ${esc(d.what)}`, "bad"); status(`❌ [${d.stage}] ${d.what}`, "err"); break;
     case "chat.reply": say("ai", d.text); break;
-    case "run.end": if (!$("#now").classList.contains("err")) status(`✅ 끝 · 턴 ${totals.turns} · 도구 ${totals.tools}번 · 토큰 ${totals.tokens} · ${elapsed()}`, "done");
+    case "run.end": setBusy(false); if (!$("#now").classList.contains("err")) status(`✅ 끝 · 턴 ${totals.turns} · 도구 ${totals.tools}번 · 토큰 ${totals.tokens} · ${elapsed()}`, "done");
       t0 = 0;
       api("/api/state").then((s) => { S = s; render(); }); break;
   }
@@ -354,17 +390,20 @@ $("#folder-go").onclick = async (ev) => {
     $("#dlg-folder").close(); say("ai", `📁 사본을 만들었어요: ${r.copied}개 → ${r.dest}` + ((r.skipped || []).length ? `\n복사하지 못해 건너뛴 파일 ${r.skipped.length}개 (다른 프로그램이 열어 두었거나 내려받는 중): ${r.skipped.slice(0, 5).join(", ")}` : "")); } catch (e) { alert(e.message); }
 };
 
-$("#composer").onsubmit = (e) => { e.preventDefault(); const t = $("#input").value.trim(); if (t) send(t); };
-$("#input").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#composer").requestSubmit(); } };
+$("#composer").onsubmit = (e) => { e.preventDefault(); const t = $("#input").value.trim(); if (t && !busy) send(t); };
+$("#input").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!busy) $("#composer").requestSubmit(); } };
 $("#btn-stop").onclick = () => api("/api/stop", {});
 $("#btn-new").onclick = () => api("/api/new_chat", {}).then(() => { $("#chat").innerHTML = ""; say("ai", "새 대화를 시작합니다 (에이전트 기억을 비웠어요)."); });
 $("#btn-undo").onclick = async () => { if (!confirm("옮긴 파일을 모두 원래 자리로 되돌릴까요? (노트로 만든 파일은 그대로 있습니다)")) return;
   const r = await api("/api/undo", {}); say("ai", r.moves.length ? "↩️ 되돌림:\n" + r.moves.join("\n") : "되돌릴 이동이 없습니다."); };
 $("#btn-team").onclick = async () => {
+  if (busy) return;
   const text = $("#input").value.trim();
   if (!confirm("나의 에이전트가 먼저 일하고, 그다음 도슨트가 갤러리를 만듭니다. 시작할까요?")) return;
+  setBusy(true);
+  status("⏳ 팀 실행 요청 중…");
   try { await api("/api/team", { text }); $("#input").value = ""; }
-  catch (e) { errCard({ stage: "팀 실행", what: e.message, todo: "끝나거나 [멈춤]을 누른 뒤 다시" }); }
+  catch (e) { await syncBusy(); errCard({ stage: "팀 실행", what: e.message, todo: "끝나거나 [멈춤]을 누른 뒤 다시" }); }
 };
 $("#btn-parts").onclick = () => $("#main").classList.toggle("noparts");
 $("#btn-big").onclick = () => document.body.classList.toggle("big");

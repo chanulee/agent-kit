@@ -383,3 +383,19 @@ def test_skill_index_names_the_action_tools_it_covers(kit):
     (root / "skills/plain").mkdir()
     (root / "skills/plain/SKILL.md").write_text("# 말투 스킬\n도구 이름이 없는 스킬", encoding="utf-8")
     assert "- plain: 말투 스킬" in core.skill_index(["plain"]) and "쓰기 전에" not in core.skill_index(["plain"])
+
+
+def test_dashboard_exposes_busy_and_rejects_new_runs(kit):
+    from fastapi.testclient import TestClient
+    from engine import server
+    eng = core.Engine()
+    client = TestClient(server.create_app(eng))
+    assert client.get("/api/state").json()["busy"] is False
+    eng.busy.acquire()
+    try:
+        assert client.get("/api/state").json()["busy"] is True
+        for endpoint in ("/api/chat", "/api/team"):
+            assert client.post(endpoint, json={"text": "duplicate"}).status_code == 409
+    finally:
+        eng.busy.release()
+    assert client.get("/api/state").json()["busy"] is False
